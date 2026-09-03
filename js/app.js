@@ -35,6 +35,9 @@
 
   // ---- 何切る問題タブの状態 ----
   const mondai = {
+    levelId: 'random',
+    savedToReview: false,
+    autoSaved: false,
     problem: null,
     selectedPosition: null,
     answered: false,
@@ -107,6 +110,7 @@
         if (tab === 'stats') renderStatsTab();
         if (tab === 'mondai' && !mondai.problem) startNewMondai();
         if (tab === 'kifu' && window.MJ.AppKifu) window.MJ.AppKifu.refreshList();
+        if (tab === 'review' && window.MJ.AppReview) window.MJ.AppReview.render();
       });
     });
   }
@@ -336,10 +340,12 @@
   // 何切る問題タブ
   // ==================================================
   function startNewMondai() {
-    mondai.problem = Problems.nextProblem();
+    mondai.problem = Problems.nextProblem(mondai.levelId);
     mondai.selectedPosition = null;
     mondai.answered = false;
     mondai.gradeResult = null;
+    mondai.savedToReview = false;
+    mondai.autoSaved = false;
     renderMondai();
   }
 
@@ -369,6 +375,47 @@
       bestLabel: mondai.problem.analysis.recommended.label,
     });
 
+    // 学習価値の高い打牌(×/△・1位と違う・シャンテン戻し・受け入れ大幅減)は自動で復習帳へ
+    const Review = window.MJ.Review;
+    const auto = Review.shouldAutoSave(mondai.problem.analysis, tileValue, grade.grade);
+    if (auto.should) {
+      Review.recordAndSave({
+        tiles14: mondai.problem.tiles14,
+        counts14: mondai.problem.counts14,
+        analysis: mondai.problem.analysis,
+        chosenTile: tileValue,
+        grade: grade.grade,
+        gradeLabel: grade.gradeLabel,
+        comment: grade.comment,
+        source: 'mondai',
+        autoSaved: true,
+        autoReasons: auto.reasons,
+      });
+      mondai.savedToReview = true;
+      mondai.autoSaved = true;
+      mondai.autoReasons = auto.reasons;
+    }
+
+    renderMondai();
+  }
+
+  /** 「復習に保存」ボタン(自動保存されなかった問題を自分で保存する) */
+  function handleMondaiSaveReview() {
+    if (!mondai.answered || mondai.savedToReview) return;
+    const Review = window.MJ.Review;
+    const r = mondai.gradeResult;
+    Review.recordAndSave({
+      tiles14: mondai.problem.tiles14,
+      counts14: mondai.problem.counts14,
+      analysis: mondai.problem.analysis,
+      chosenTile: r.chosenTile,
+      grade: r.grade,
+      gradeLabel: r.gradeLabel,
+      comment: r.comment,
+      source: 'mondai',
+      autoSaved: false,
+    });
+    mondai.savedToReview = true;
     renderMondai();
   }
 
@@ -419,11 +466,74 @@
       waitPanel.hidden = true;
       analysisPanel.hidden = true;
     }
+
+    renderMondaiReviewControls();
+  }
+
+  /** 復習帳への保存ボタンと、自動保存されたことのお知らせを描画する */
+  function renderMondaiReviewControls() {
+    const saveBtn = document.getElementById('mondai-save-review-btn');
+    const note = document.getElementById('mondai-review-note');
+
+    if (!mondai.answered) {
+      saveBtn.hidden = true;
+      note.hidden = true;
+      return;
+    }
+
+    saveBtn.hidden = mondai.savedToReview;
+    saveBtn.disabled = mondai.savedToReview;
+
+    if (mondai.savedToReview) {
+      note.hidden = false;
+      note.textContent = mondai.autoSaved
+        ? '復習帳に自動で追加しました(' + (mondai.autoReasons || []).join('、') + ')。「復習帳」タブでもう一度解けます。'
+        : '復習帳に保存しました。「復習帳」タブでもう一度解けます。';
+    } else {
+      note.hidden = true;
+    }
+  }
+
+  /** 学習レベルの選択欄を用意する */
+  function initMondaiLevelSelect() {
+    const select = document.getElementById('mondai-level-select');
+    Problems.LEVELS.forEach((lv) => {
+      const opt = document.createElement('option');
+      opt.value = lv.id;
+      opt.textContent = lv.name;
+      select.appendChild(opt);
+    });
+    select.value = mondai.levelId;
+    select.addEventListener('change', () => {
+      mondai.levelId = select.value;
+      startNewMondai();
+      renderMondaiLevelHint();
+    });
+    renderMondaiLevelHint();
+  }
+
+  function renderMondaiLevelHint() {
+    const hint = document.getElementById('mondai-level-hint');
+    const lv = Problems.levelById(mondai.levelId);
+    if (lv.id === 'random') {
+      hint.hidden = true;
+      return;
+    }
+    hint.hidden = false;
+    hint.innerHTML = '';
+    const theme = document.createElement('strong');
+    theme.textContent = lv.theme;
+    hint.appendChild(theme);
+    const body = document.createElement('div');
+    body.textContent = lv.hint;
+    hint.appendChild(body);
   }
 
   function initMondaiTab() {
     document.getElementById('mondai-answer-btn').addEventListener('click', handleMondaiAnswer);
     document.getElementById('mondai-next-btn').addEventListener('click', startNewMondai);
+    document.getElementById('mondai-save-review-btn').addEventListener('click', handleMondaiSaveReview);
+    initMondaiLevelSelect();
   }
 
   // ==================================================

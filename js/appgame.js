@@ -125,10 +125,58 @@
     if (gameTab.selectedPosition === null) return;
     const tiles = currentDisplayTiles();
     const tile = tiles[gameTab.selectedPosition];
+    maybeSaveToReview(tiles, tile);
     Round.discardTile(gameTab.match, tile, gameTab.riichiArmed);
     gameTab.riichiArmed = false;
     gameTab.selectedPosition = null;
     advanceAndRender();
+  }
+
+  /**
+   * 対局中の打牌のうち、学習価値が高いものだけを何切る復習帳に追加する。
+   * 大量に貯まらないよう、門前(副露なし)で14枚そろっている場面に限り、
+   * さらに review.js の自動保存条件(シャンテン戻し・受け入れ大幅減など)を満たすものだけにする。
+   */
+  function maybeSaveToReview(tiles, chosenTile) {
+    const Review = window.MJ.Review;
+    if (!Review) return;
+    const p = gameTab.match.players[HUMAN_SEAT];
+    // 副露があると「何切る問題」として再現できないため対象外
+    if (p.fuuro.length > 0 || tiles.length !== 14) return;
+
+    try {
+      const counts14 = Tiles.toCounts(tiles);
+      const analysis = Evaluator.analyzeHand(counts14);
+      const grade = Evaluator.gradeUserChoice(analysis, chosenTile);
+      // 対局中は誤操作も多いので、学習価値が特に高いものだけに絞る
+      const chosen = analysis.discards.find((d) => d.tile === chosenTile);
+      const best = analysis.recommended;
+      if (!chosen) return;
+      const shantenBack = chosen.resultShanten > best.resultShanten;
+      const bigUkeireLoss = best.ukeireTotal - chosen.ukeireTotal >= 6;
+      const farFromTop = analysis.discards.slice(0, 3).every((d) => d.tile !== chosenTile);
+      if (!shantenBack && !bigUkeireLoss && !farFromTop) return;
+
+      const reasons = [];
+      if (shantenBack) reasons.push('対局中にシャンテン数を戻したため');
+      if (bigUkeireLoss) reasons.push('対局中に受け入れを' + (best.ukeireTotal - chosen.ukeireTotal) + '枚減らしたため');
+      if (farFromTop && !shantenBack && !bigUkeireLoss) reasons.push('牌効率上の候補から大きく外れたため');
+
+      Review.recordAndSave({
+        tiles14: tiles,
+        counts14,
+        analysis,
+        chosenTile,
+        grade: grade.grade,
+        gradeLabel: grade.gradeLabel,
+        comment: grade.comment,
+        source: 'game',
+        autoSaved: true,
+        autoReasons: reasons,
+      });
+    } catch (e) {
+      // 復習帳への保存に失敗しても対局は続行する
+    }
   }
 
   function handleTsumoClick() {

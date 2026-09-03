@@ -26,6 +26,8 @@ const PushFold = require(path.join(__dirname, '..', 'js', 'pushfold.js'));
 const CPU = require(path.join(__dirname, '..', 'js', 'cpu.js'));
 const Kifu = require(path.join(__dirname, '..', 'js', 'kifu.js'));
 const Coach = require(path.join(__dirname, '..', 'js', 'coach.js'));
+const Review = require(path.join(__dirname, '..', 'js', 'review.js'));
+const Problems = require(path.join(__dirname, '..', 'js', 'problems.js'));
 
 function mulberry32(seed) {
   return function () {
@@ -1742,6 +1744,15 @@ test('applyWinPayments: 役満ツモでも点数がNaNにならず合計が保�
   });
   const after = match.players.reduce((a, p) => a + p.score, 0);
   assert.strictEqual(after, before, '点数の合計が保存されていない');
+});
+
+require(path.join(__dirname, 'review-tests.js'))({
+  test,
+  assert,
+  Tiles,
+  Evaluator,
+  Review,
+  Problems,
 });
 
 // ==================================================

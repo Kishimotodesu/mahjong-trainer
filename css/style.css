@@ -1256,3 +1256,377 @@ body {
     height: 21px;
   }
 }
+
+/* ==================================================
+   何切る復習帳(V1.4)
+   スマホで片手操作しやすいことを優先する
+   ================================================== */
+
+.review-hero {
+  background: var(--bg-panel);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.review-hero h2 {
+  margin-top: 0;
+}
+
+.big-btn {
+  min-height: 52px;
+  font-size: 1rem;
+  padding: 12px 18px;
+}
+
+.review-list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 8px;
+  font-size: 0.85rem;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.review-item {
+  background: var(--bg-panel);
+  border-radius: var(--radius);
+  border-left: 4px solid #2c5245;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.review-item.status-todo { border-left-color: var(--bad); }
+.review-item.status-learning { border-left-color: #c98a2f; }
+.review-item.status-mastered { border-left-color: var(--good); }
+.review-item.status-new { border-left-color: var(--accent); }
+
+.review-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.review-status-badge {
+  font-size: 0.75rem;
+  font-weight: bold;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #0c2a20;
+}
+
+.review-status-badge.status-todo { color: var(--bad); }
+.review-status-badge.status-learning { color: #e0a34a; }
+.review-status-badge.status-mastered { color: var(--good); }
+.review-status-badge.status-new { color: var(--accent-strong); }
+
+.review-date {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.review-mini-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+.review-item-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+
+.review-hidden-note {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+.review-best {
+  color: var(--accent-strong);
+}
+
+.review-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.review-tag-label {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.review-tag {
+  font-size: 0.72rem;
+  background: #0c2a20;
+  border: 1px solid #2c5245;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.review-item-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.review-history {
+  margin-top: 8px;
+  border-top: 1px solid #2c5245;
+  padding-top: 8px;
+}
+
+.review-history-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.85rem;
+}
+
+.review-history-list .history-excellent {
+  color: var(--good);
+  font-weight: bold;
+}
+
+.review-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.review-summary-cell {
+  background: #0c2a20;
+  border-radius: 8px;
+  padding: 8px 6px;
+  text-align: center;
+}
+
+.review-summary-value {
+  font-size: 1.15rem;
+  font-weight: bold;
+  color: var(--accent-strong);
+}
+
+.review-summary-label {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.weakness-list {
+  margin: 8px 0 0;
+  padding-left: 22px;
+}
+
+.weakness-list li {
+  margin-bottom: 10px;
+}
+
+.weakness-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.weakness-rate {
+  font-size: 0.8rem;
+  color: var(--bad);
+}
+
+.weakness-desc {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* 解答結果 */
+.review-compare {
+  background: #0c2a20;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 8px 0;
+}
+
+.review-compare-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-size: 0.92rem;
+}
+
+.review-compare-label {
+  color: var(--text-dim);
+}
+
+.review-compare-value {
+  font-weight: bold;
+}
+
+.review-change {
+  font-weight: bold;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin: 8px 0;
+  background: #0c2a20;
+}
+
+.review-change.change-up {
+  color: var(--good);
+  background: rgba(90, 180, 120, 0.15);
+}
+
+.review-change.change-down {
+  color: var(--bad);
+}
+
+.review-mastered {
+  background: rgba(90, 180, 120, 0.18);
+  color: var(--good);
+  font-weight: bold;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 8px 0;
+}
+
+.beginner-point {
+  background: var(--bg-panel-light);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 10px 0;
+}
+
+.beginner-point-title {
+  font-size: 0.78rem;
+  color: var(--accent-strong);
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.beginner-point-body {
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.review-details {
+  margin: 8px 0;
+}
+
+.review-details summary {
+  cursor: pointer;
+  padding: 8px 0;
+  color: var(--accent-strong);
+  font-size: 0.9rem;
+}
+
+.review-details-body {
+  font-size: 0.86rem;
+}
+
+.review-result-history {
+  margin-top: 10px;
+  border-top: 1px solid #2c5245;
+  padding-top: 8px;
+}
+
+.review-result-history-title {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.review-io textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+.review-note {
+  background: rgba(90, 180, 120, 0.15);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  margin: 8px 0;
+}
+
+.level-hint {
+  background: var(--bg-panel);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  font-size: 0.86rem;
+}
+
+.mondai-level-label {
+  font-size: 0.85rem;
+}
+
+.muted {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 560px) {
+  /* 復習は片手で回せるよう、主要ボタンを大きく縦に積む */
+  .review-hero {
+    padding: 12px 10px;
+  }
+
+  #review-today-btn {
+    width: 100%;
+  }
+
+  .review-item-controls button {
+    flex: 1 1 auto;
+    min-width: 30%;
+  }
+
+  .review-summary-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  #review-solve-controls-answering,
+  #review-solve-controls-done {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    background: var(--bg-panel);
+    border-top: 1px solid #2c5245;
+    padding: 8px;
+    margin: 8px -8px 0;
+    display: flex;
+    gap: 6px;
+    box-shadow: 0 -3px 10px rgba(0, 0, 0, 0.35);
+  }
+
+  #review-solve-answer-btn,
+  #review-next-btn {
+    flex: 1 1 auto;
+  }
+
+  .review-compare-row {
+    font-size: 0.88rem;
+  }
+
+  .beginner-point-body {
+    font-size: 0.9rem;
+  }
+}

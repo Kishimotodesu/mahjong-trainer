@@ -17,8 +17,9 @@
   <button class="tab-btn active" data-tab="game">対局</button>
   <button class="tab-btn" data-tab="training">トレーニング</button>
   <button class="tab-btn" data-tab="mondai">何切る問題</button>
+  <button class="tab-btn" data-tab="review">復習帳</button>
   <button class="tab-btn" data-tab="analysis">局面分析</button>
-  <button class="tab-btn" data-tab="kifu">牌譜・復習</button>
+  <button class="tab-btn" data-tab="kifu">牌譜</button>
   <button class="tab-btn" data-tab="stats">成績</button>
   <button class="tab-btn" data-tab="tutorial">学習</button>
   <button class="tab-btn" data-tab="dictionary">用語辞典</button>
@@ -130,7 +131,81 @@
     </div>
   </section>
 
-  <!-- ============ 牌譜・復習タブ ============ -->
+  <!-- ============ 何切る復習帳タブ ============ -->
+  <section id="tab-review" class="tab-panel">
+
+    <div id="review-list-view">
+      <div class="review-hero">
+        <h2>何切る復習帳</h2>
+        <p class="muted">
+          間違えた「何切る」は自動でここに貯まります。同じ問題を繰り返し解いて、
+          「なぜこの牌なのか」を少しずつ覚えていきましょう。
+        </p>
+        <button id="review-today-btn" class="primary big-btn">今日の復習を始める(5問・3〜5分)</button>
+      </div>
+
+      <div id="review-summary" class="analysis-panel"></div>
+
+      <div id="review-weakness" class="analysis-panel"></div>
+
+      <div class="review-list-toolbar">
+        <label>表示:
+          <select id="review-status-filter">
+            <option value="all">すべて</option>
+            <option value="todo">要復習</option>
+            <option value="new">未復習</option>
+            <option value="learning">学習中</option>
+            <option value="mastered">習得</option>
+          </select>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="review-hide-answers" checked />
+          答えを隠す
+        </label>
+        <span id="review-count-label" class="muted"></span>
+      </div>
+
+      <div id="review-list-body"></div>
+
+      <details class="review-io">
+        <summary>復習データの保存・移行(JSON)</summary>
+        <p class="muted">
+          スマホとPCのデータは共有されません。機種変更や端末間の移行にはここを使ってください。
+        </p>
+        <div class="controls">
+          <button id="review-export-btn">書き出す</button>
+          <button id="review-import-btn">読み込む</button>
+        </div>
+        <textarea id="review-io-text" rows="6" placeholder="ここに復習データのJSONが表示されます / 読み込むJSONを貼り付けます"></textarea>
+        <div id="review-io-message" class="muted"></div>
+      </details>
+    </div>
+
+    <div id="review-solve-view" hidden>
+      <div class="status-bar">
+        <div id="review-solve-progress" class="shanten-badge"></div>
+      </div>
+
+      <div class="hand-area">
+        <h2>この手牌なら何を切る?</h2>
+        <div id="review-solve-hand" class="tile-row"></div>
+      </div>
+
+      <div class="controls" id="review-solve-controls-answering">
+        <button id="review-solve-answer-btn" class="primary big-btn" disabled>この牌に決定</button>
+        <button id="review-back-btn">一覧に戻る</button>
+      </div>
+
+      <div id="review-solve-result" class="result-panel" hidden></div>
+
+      <div class="controls" id="review-solve-controls-done" hidden>
+        <button id="review-next-btn" class="primary big-btn">次の問題へ</button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ============ 牌譜タブ ============ -->
   <section id="tab-kifu" class="tab-panel">
     <h2>牌譜・復習</h2>
     <p class="hint-text">保存した対局を1手ずつ再生し、「このとき何を切るべきだったか」を振り返れます。</p>
@@ -222,7 +297,12 @@
   <section id="tab-mondai" class="tab-panel">
     <div class="status-bar">
       <div class="shanten-badge" id="mondai-shanten">シャンテン: ?</div>
+      <label class="mondai-level-label">学習レベル:
+        <select id="mondai-level-select"></select>
+      </label>
     </div>
+
+    <div id="mondai-level-hint" class="level-hint"></div>
 
     <div class="hand-area">
       <h2>あなたなら何を切る?</h2>
@@ -232,7 +312,10 @@
     <div class="controls">
       <button id="mondai-answer-btn" class="primary" disabled>この牌に決定</button>
       <button id="mondai-next-btn">次の問題</button>
+      <button id="mondai-save-review-btn" hidden>復習に保存</button>
     </div>
+
+    <div id="mondai-review-note" class="review-note" hidden></div>
 
     <div id="mondai-result" class="result-panel" hidden></div>
 
@@ -438,10 +521,12 @@
 <script src="js/game.js"></script>
 <script src="js/dictionary.js"></script>
 <script src="js/stats.js"></script>
+<script src="js/review.js"></script>
 <script src="js/problems.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/app.js"></script>
 <script src="js/appgame.js"></script>
+<script src="js/appreview.js"></script>
 <script src="js/appkifu.js"></script>
 <script src="js/apptutorial.js"></script>
 </body>
