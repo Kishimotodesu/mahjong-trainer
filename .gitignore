@@ -1,0 +1,23 @@
+# 依存関係
+node_modules/
+
+# OS が生成するファイル
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# エディタ設定
+.vscode/
+.idea/
+*.swp
+
+# ログ・一時ファイル
+*.log
+npm-debug.log*
+tmp/
+temp/
+
+# テスト・ビルド成果物(現状は生成しないが将来用)
+coverage/
+dist/
+build/

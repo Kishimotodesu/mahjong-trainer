@@ -1,0 +1,10 @@
+{
+  "name": "mahjong-trainer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "麻雀初心者向けの牌効率・役・点数・CPU対局学習トレーナー(一人用・ローカル動作)",
+  "scripts": {
+    "test": "node tests/run.js",
+    "simulate": "node tests/simulate.js 200"
+  }
+}

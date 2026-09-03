@@ -1,0 +1,1258 @@
+:root {
+  --bg: #0f2e24;
+  --bg-panel: #163a2d;
+  --bg-panel-light: #1d4636;
+  --accent: #e0c060;
+  --accent-strong: #f2d783;
+  --text: #f2f2ec;
+  --text-dim: #c7d3c9;
+  --tile-bg: #fdfdf8;
+  --tile-border: #444;
+  --man: #c0392b;
+  --pin: #2166ac;
+  --sou: #1e7d32;
+  --honor: #6a3d9a;
+  --good: #3aa65c;
+  --ok: #7ab648;
+  --fair: #d9a441;
+  --bad: #d1495b;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Yu Gothic', 'Meiryo', 'Hiragino Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: linear-gradient(180deg, #0c231c, #0f2e24);
+  border-bottom: 2px solid var(--accent);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: var(--accent-strong);
+  letter-spacing: 0.05em;
+}
+
+#mode-status-label {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 16px 0;
+  background: var(--bg);
+  border-bottom: 1px solid #2c5245;
+}
+
+.tab-btn {
+  background: var(--bg-panel);
+  border: 1px solid #2c5245;
+  border-bottom: none;
+  color: var(--text-dim);
+  padding: 8px 16px;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.tab-btn.active {
+  background: var(--bg-panel-light);
+  color: var(--accent-strong);
+  font-weight: bold;
+}
+
+.toolbar {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 10px 16px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid #2c5245;
+  font-size: 0.9rem;
+}
+
+.toolbar select {
+  margin-left: 6px;
+}
+
+main {
+  padding: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+.status-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.shanten-badge, .turn-info {
+  background: var(--bg-panel-light);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  font-weight: bold;
+  color: var(--accent-strong);
+}
+
+.hand-area h2 {
+  font-size: 1rem;
+  color: var(--text-dim);
+  margin: 4px 0 8px;
+}
+
+.tile-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  background: #0c2a20;
+  border-radius: var(--radius);
+  min-height: 84px;
+}
+
+.tile {
+  width: 46px;
+  height: 66px;
+  background: var(--tile-bg);
+  border: 2px solid var(--tile-border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+  position: relative;
+  padding: 2px;
+}
+
+.tile:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.tile.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-strong);
+  transform: translateY(-6px);
+}
+
+.tile.drawn {
+  margin-left: 10px;
+  border-color: var(--accent-strong);
+}
+
+.tile.suit-m { color: var(--man); }
+.tile.suit-p { color: var(--pin); }
+.tile.suit-s { color: var(--sou); }
+.tile.suit-z { color: var(--honor); }
+
+.tile .tile-glyph {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.tile .tile-label {
+  font-size: 0.65rem;
+  font-weight: bold;
+  color: #222;
+  margin-top: 2px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+button {
+  background: var(--bg-panel-light);
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+button:hover:not(:disabled) {
+  background: var(--accent);
+  color: #16261e;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: var(--accent);
+  color: #16261e;
+  font-weight: bold;
+}
+
+.result-panel, .analysis-panel, .explain-panel, .agari-banner {
+  background: var(--bg-panel);
+  border: 1px solid #2c5245;
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.result-panel h3, .analysis-panel h3, .explain-panel h3 {
+  margin-top: 0;
+  color: var(--accent-strong);
+  font-size: 1rem;
+}
+
+.grade-line {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.grade-excellent { color: var(--good); }
+.grade-good { color: var(--ok); }
+.grade-fair { color: var(--fair); }
+.grade-bad { color: var(--bad); }
+
+#training-ranking, #mondai-ranking {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rank-item {
+  background: var(--bg-panel-light);
+  border-radius: 8px;
+  padding: 10px 12px;
+  border-left: 4px solid var(--accent);
+}
+
+.rank-item.rank-1 { border-left-color: var(--good); }
+.rank-item.rank-2 { border-left-color: var(--ok); }
+.rank-item.rank-3 { border-left-color: var(--fair); }
+
+.rank-header {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.rank-header .rank-num {
+  color: var(--accent-strong);
+}
+
+.rank-meta {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.rank-reason {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.ukeire-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.ukeire-chip {
+  background: #0c2a20;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+}
+
+.agari-banner {
+  text-align: center;
+  border-color: var(--accent-strong);
+}
+
+.agari-banner p {
+  font-size: 1.2rem;
+  color: var(--accent-strong);
+}
+
+.block-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.block-summary-item {
+  background: var(--bg-panel-light);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.9rem;
+}
+
+.dict-term {
+  background: var(--bg-panel);
+  border: 1px solid #2c5245;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-bottom: 10px;
+}
+
+.dict-term summary {
+  cursor: pointer;
+  font-weight: bold;
+  color: var(--accent-strong);
+}
+
+.dict-term p {
+  margin: 8px 0 0;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 14px;
+  text-align: center;
+}
+
+.stat-card .stat-value {
+  font-size: 1.6rem;
+  font-weight: bold;
+  color: var(--accent-strong);
+}
+
+.stat-card .stat-label {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+#stats-recent-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#stats-recent-list li {
+  background: var(--bg-panel);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+
+.tile-tooltip {
+  position: fixed;
+  background: #111;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.hint-text {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+
+/* ===== V1.1 追加分 ===== */
+
+.disclaimer {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  background: #0c2a20;
+  border: 1px dashed #3c6a56;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+/* 牌ビジュアルグリッド(有効牌・待ち牌など) */
+.tile-visual-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.tile-visual-card {
+  width: 56px;
+  background: var(--tile-bg);
+  border: 2px solid var(--tile-border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 2px;
+  color: #222;
+}
+
+.tile-visual-card .tile-glyph {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.tile-visual-card .tile-label {
+  font-size: 0.62rem;
+  font-weight: bold;
+}
+
+.tile-visual-count {
+  font-size: 0.65rem;
+  margin-top: 2px;
+  font-weight: bold;
+}
+
+.tile-visual-shanten {
+  font-size: 0.6rem;
+  color: #444;
+  margin-top: 1px;
+}
+
+/* 比較表 */
+.compare-table-wrap {
+  overflow-x: auto;
+}
+
+table.compare-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+table.compare-table th,
+table.compare-table td {
+  border: 1px solid #2c5245;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+table.compare-table th {
+  background: var(--bg-panel-light);
+  color: var(--accent-strong);
+}
+
+table.compare-table td:first-child {
+  font-weight: bold;
+}
+
+tr.grade-row-excellent td { background: rgba(58, 166, 92, 0.15); }
+tr.grade-row-good td { background: rgba(122, 182, 72, 0.12); }
+tr.grade-row-fair td { background: rgba(217, 164, 65, 0.1); }
+tr.grade-row-bad td { background: rgba(209, 73, 91, 0.1); }
+
+.compare-table-all summary {
+  cursor: pointer;
+  color: var(--accent-strong);
+  margin: 6px 0;
+}
+
+/* 自分の選択 vs おすすめ 比較カード */
+.compare-cards-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.compare-card {
+  flex: 1;
+  min-width: 160px;
+  background: var(--bg-panel-light);
+  border: 2px solid #2c5245;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.compare-card-best {
+  border-color: var(--good);
+}
+
+.compare-card-title {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.compare-card-tile {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--accent-strong);
+  margin-bottom: 4px;
+}
+
+.compare-diff {
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: var(--accent-strong);
+}
+
+.compare-comment {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.compare-card-wait {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #3c6a56;
+  font-size: 0.8rem;
+  color: var(--accent-strong);
+}
+
+/* 待ち牌パネル */
+.wait-header {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--accent-strong);
+  margin-bottom: 6px;
+}
+
+.wait-total {
+  margin-top: 6px;
+  font-weight: bold;
+}
+
+/* アガリ形の面子分解 */
+.agari-breakdown-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.agari-group-badge {
+  background: var(--bg-panel-light);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 12px;
+  text-align: center;
+}
+
+.agari-group-label {
+  font-weight: bold;
+  color: var(--accent-strong);
+  font-size: 1rem;
+}
+
+.agari-group-kind {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+/* 形の発展(3445萬など) */
+.shape-growth-box {
+  background: var(--bg-panel-light);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.shape-growth-title {
+  font-weight: bold;
+  color: var(--accent-strong);
+  margin-bottom: 4px;
+}
+
+.shape-growth-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.shape-growth-improves {
+  color: var(--good);
+  font-weight: bold;
+}
+
+/* 手牌の形ハイライト */
+.tile.cat-meld { box-shadow: 0 0 0 3px var(--good); }
+.tile.cat-pair-head { box-shadow: 0 0 0 3px var(--accent); }
+.tile.cat-pair-taatsu { box-shadow: 0 0 0 3px #c98a2f; }
+.tile.cat-ryanmen { box-shadow: 0 0 0 3px var(--pin); }
+.tile.cat-kanchan { box-shadow: 0 0 0 3px var(--honor); }
+.tile.cat-penchan { box-shadow: 0 0 0 3px #b06a2a; }
+.tile.cat-isolated { opacity: 0.55; }
+.tile.selected.cat-meld,
+.tile.selected.cat-pair-head,
+.tile.selected.cat-pair-taatsu,
+.tile.selected.cat-ryanmen,
+.tile.selected.cat-kanchan,
+.tile.selected.cat-penchan,
+.tile.selected.cat-isolated {
+  box-shadow: 0 0 0 3px var(--accent-strong);
+}
+
+.highlight-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.75rem;
+  margin: 8px 0;
+  color: var(--text-dim);
+}
+
+.legend-item {
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid #2c5245;
+}
+
+.legend-item.cat-meld { border-color: var(--good); color: var(--good); }
+.legend-item.cat-pair-head { border-color: var(--accent); color: var(--accent); }
+.legend-item.cat-pair-taatsu { border-color: #c98a2f; color: #c98a2f; }
+.legend-item.cat-ryanmen { border-color: var(--pin); color: #6ea8e0; }
+.legend-item.cat-kanchan { border-color: var(--honor); color: #b48ee0; }
+.legend-item.cat-penchan { border-color: #b06a2a; color: #d99a5c; }
+.legend-item.cat-isolated { opacity: 0.7; }
+
+/* 手牌分析タブ: 34種パレット */
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+  gap: 6px;
+  padding: 10px;
+  background: #0c2a20;
+  border-radius: var(--radius);
+}
+
+.palette-item {
+  position: relative;
+}
+
+.palette-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--accent);
+  color: #16261e;
+  font-size: 0.7rem;
+  font-weight: bold;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.palette-status {
+  font-weight: bold;
+  color: var(--accent-strong);
+  margin: 10px 0;
+}
+
+.section-title {
+  color: var(--accent-strong);
+  font-size: 1rem;
+  margin: 18px 0 8px;
+}
+
+/* ===== V1.2 追加分: 役・符・点数 ===== */
+
+.conditions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px 16px;
+  margin: 10px 0;
+  font-size: 0.85rem;
+}
+
+.conditions-grid select {
+  margin-left: 4px;
+}
+
+#analysis-conditions summary {
+  cursor: pointer;
+  color: var(--accent-strong);
+  font-weight: bold;
+  font-size: 1rem;
+  padding: 4px 0;
+}
+
+.aka-dora-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.aka-dora-item input {
+  width: 50px;
+}
+
+.yaku-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.yaku-list-item {
+  background: var(--bg-panel-light);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.yaku-list-item summary {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  font-weight: bold;
+}
+
+.yaku-list-item .yaku-han {
+  color: var(--accent-strong);
+}
+
+.yaku-list-item p {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.score-summary {
+  background: var(--bg-panel-light);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 14px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.score-summary .score-tier {
+  font-size: 1rem;
+  color: var(--accent-strong);
+}
+
+.score-summary .score-points {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: var(--accent-strong);
+}
+
+.score-summary .score-payment {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+.fu-breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-top: 6px;
+}
+
+.fu-breakdown-table td {
+  border-bottom: 1px solid #2c5245;
+  padding: 4px 8px;
+}
+
+.fu-breakdown-table td:last-child {
+  text-align: right;
+  font-weight: bold;
+}
+
+.no-yaku-box {
+  background: var(--bg-panel-light);
+  border: 1px solid var(--bad);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  line-height: 1.6;
+}
+
+.yaku-candidate-item {
+  background: var(--bg-panel-light);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+}
+
+.yaku-candidate-item .cand-name {
+  font-weight: bold;
+  color: var(--accent-strong);
+  margin-right: 6px;
+}
+
+/* ===== V1.3 追加分: CPU対局 ===== */
+
+.game-status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.coach-inline {
+  margin-left: auto;
+  font-size: 0.85rem;
+}
+
+.player-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.player-status-card {
+  background: var(--bg-panel);
+  border: 1px solid #2c5245;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+}
+
+.player-status-card.is-self {
+  border-color: var(--accent);
+}
+
+.player-status-card.is-turn {
+  box-shadow: 0 0 0 2px var(--accent-strong);
+}
+
+.player-status-card .player-name-row {
+  display: flex;
+  justify-content: space-between;
+  font-weight: bold;
+  color: var(--accent-strong);
+}
+
+.player-status-card .player-score {
+  font-size: 1rem;
+}
+
+.player-status-card .player-tags {
+  margin-top: 4px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.player-tag {
+  background: var(--bg-panel-light);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 0.7rem;
+}
+
+.player-tag.riichi-tag {
+  background: var(--bad);
+  color: #fff;
+}
+
+.player-status-card .player-fuuro-mini {
+  margin-top: 4px;
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.discards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.discard-pile-box {
+  background: #0c2a20;
+  border-radius: 8px;
+  padding: 6px;
+  min-height: 46px;
+}
+
+.discard-pile-label {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.discard-pile-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.mini-tile {
+  width: 22px;
+  height: 30px;
+  background: var(--tile-bg);
+  border: 1px solid var(--tile-border);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  font-weight: bold;
+  color: #222;
+  position: relative;
+}
+
+.mini-tile.called {
+  opacity: 0.35;
+  transform: rotate(90deg) scale(0.8);
+}
+
+.mini-tile.riichi-tile {
+  border-color: var(--bad);
+  box-shadow: 0 0 0 1px var(--bad);
+}
+
+.fuuro-row {
+  min-height: 50px;
+}
+
+.fuuro-group {
+  display: flex;
+  gap: 1px;
+  margin-right: 8px;
+  padding: 2px;
+  border: 1px dashed #3c6a56;
+  border-radius: 4px;
+}
+
+.coach-eval-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin-top: 8px;
+}
+
+.coach-eval-table th,
+.coach-eval-table td {
+  border: 1px solid #2c5245;
+  padding: 5px 8px;
+  text-align: center;
+}
+
+.coach-eval-table th {
+  background: var(--bg-panel-light);
+  color: var(--accent-strong);
+}
+
+.pushfold-banner {
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-top: 8px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.pushfold-banner.push { background: rgba(58, 166, 92, 0.18); border: 1px solid var(--good); }
+.pushfold-banner.difficult { background: rgba(217, 164, 65, 0.15); border: 1px solid var(--fair); }
+.pushfold-banner.fold { background: rgba(209, 73, 91, 0.15); border: 1px solid var(--bad); }
+
+.safety-chip {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.65rem;
+  margin-left: 4px;
+}
+
+.safety-chip.absolute { background: var(--good); color: #fff; }
+.safety-chip.relative { background: var(--fair); color: #16261e; }
+
+#analysis-scenario-io {
+  background: var(--bg-panel);
+  border: 1px solid #2c5245;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+
+#analysis-scenario-io summary {
+  cursor: pointer;
+  color: var(--accent-strong);
+  font-weight: bold;
+}
+
+#analysis-scenario-json {
+  background: #0c2a20;
+  color: var(--text);
+  border: 1px solid #2c5245;
+  border-radius: 6px;
+  padding: 8px;
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+/* ==================================================
+   スマホ・タブレット対応(V1.3.1)
+   - 対局画面を優先。タップしやすさと横スクロール抑制を重視する
+   ================================================== */
+
+/* タップ時のハイライトを抑え、意図しない拡大を防ぐ */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+
+/* 横スクロールの原因になりやすい要素を内側で収める */
+.compare-table-wrap,
+.coach-eval-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (hover: none) {
+  /* タッチ端末ではhoverが残るのでtransformを無効化する */
+  .tile:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  .tile.selected {
+    transform: translateY(-6px);
+  }
+}
+
+@media (max-width: 820px) {
+  main {
+    padding: 10px;
+  }
+
+  .app-header {
+    padding: 8px 12px;
+  }
+
+  .app-header h1 {
+    font-size: 1.1rem;
+  }
+
+  /* タブは折り返さず横スクロールさせる */
+  .tabs {
+    padding: 6px 8px 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .tab-btn {
+    flex: 0 0 auto;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+  }
+
+  .toolbar {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+
+  /* ボタンはタップしやすい高さを確保する(44px以上) */
+  button {
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+  }
+
+  select {
+    min-height: 40px;
+    font-size: 0.9rem;
+  }
+
+  /* 4人の状況・捨て牌は2列に整理する */
+  .player-status-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .discards-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .discard-pile-box {
+    padding: 5px;
+  }
+  .discard-pile-label {
+    font-size: 0.65rem;
+  }
+  .mini-tile {
+    width: 19px;
+    height: 26px;
+    font-size: 0.5rem;
+  }
+
+  .coach-eval-table {
+    font-size: 0.75rem;
+  }
+  .coach-eval-table th,
+  .coach-eval-table td {
+    padding: 4px 4px;
+  }
+
+  table.compare-table {
+    font-size: 0.78rem;
+  }
+}
+
+@media (max-width: 560px) {
+  main {
+    padding: 8px;
+  }
+
+  /* 手牌は1枚あたりを大きめにしてタップ精度を上げる */
+  .tile-row {
+    gap: 4px;
+    padding: 8px 6px;
+    justify-content: center;
+  }
+
+  .tile {
+    width: 42px;
+    height: 60px;
+  }
+
+  .tile.drawn {
+    margin-left: 6px;
+  }
+
+  /* 対局タブの手牌はさらに押しやすく(1行7枚×2行に収める) */
+  #game-hand .tile {
+    width: 44px;
+    height: 62px;
+  }
+
+  .player-status-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .player-status-card {
+    font-size: 0.78rem;
+    padding: 6px;
+  }
+
+  .discards-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mini-tile {
+    width: 17px;
+    height: 23px;
+    font-size: 0.45rem;
+  }
+
+  .app-header h1 {
+    font-size: 1rem;
+  }
+
+  .toolbar label {
+    font-size: 0.8rem;
+  }
+
+  /* 対局の操作ボタンは画面下に固定して常に押せるようにする */
+  #game-action-buttons {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    background: var(--bg-panel);
+    border-top: 1px solid #2c5245;
+    padding: 8px;
+    margin: 8px -8px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    box-shadow: 0 -3px 10px rgba(0, 0, 0, 0.35);
+  }
+
+  #game-action-buttons button {
+    flex: 1 1 auto;
+    min-width: 44%;
+  }
+
+  /* 長い文章・見出しが画面幅を超えないようにする */
+  .result-panel,
+  .explain-panel {
+    padding: 10px;
+    font-size: 0.88rem;
+    word-break: break-word;
+  }
+
+  h2 {
+    font-size: 1.05rem;
+  }
+
+  h3 {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .tile {
+    width: 38px;
+    height: 55px;
+  }
+  #game-hand .tile {
+    width: 40px;
+    height: 58px;
+  }
+  .mini-tile {
+    width: 15px;
+    height: 21px;
+  }
+}

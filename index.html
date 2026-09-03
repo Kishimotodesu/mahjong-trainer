@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>麻雀トレーナー ― 牌効率を覚える一人用学習アプリ</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="app-header">
+  <h1>麻雀トレーナー</h1>
+  <div id="mode-status-label">牌効率を覚える一人用学習アプリ</div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="game">対局</button>
+  <button class="tab-btn" data-tab="training">トレーニング</button>
+  <button class="tab-btn" data-tab="mondai">何切る問題</button>
+  <button class="tab-btn" data-tab="analysis">局面分析</button>
+  <button class="tab-btn" data-tab="kifu">牌譜・復習</button>
+  <button class="tab-btn" data-tab="stats">成績</button>
+  <button class="tab-btn" data-tab="tutorial">学習</button>
+  <button class="tab-btn" data-tab="dictionary">用語辞典</button>
+</nav>
+
+<div class="toolbar">
+  <label>難易度:
+    <select id="difficulty-select">
+      <option value="beginner">初心者(かなり詳しく解説)</option>
+      <option value="standard" selected>標準(ヒント少なめ)</option>
+      <option value="practice">練習(自分で考える)</option>
+    </select>
+  </label>
+  <label id="training-only-toolbar" class="think-mode-toggle" style="display:inline-flex; align-items:center; gap:6px;">
+    <input type="checkbox" id="think-mode-checkbox" /> 自分で考えるモード(打牌前は答えを隠す)
+  </label>
+</div>
+
+<main>
+
+  <!-- ============ 対局タブ ============ -->
+  <section id="tab-game" class="tab-panel active">
+    <div id="game-setup" class="hand-area">
+      <h2>CPU対局(東南戦・東風戦)</h2>
+      <p class="hint-text">
+        CPU3人と対局できます。CPUは牌効率・受け入れ・役の可能性・安全度をある程度考慮して打つため、
+        ランダムには打ちません。まずは「コーチ: フルコーチ」で始めるのがおすすめです。
+      </p>
+      <div class="conditions-grid">
+        <label>対局形式:
+          <select id="game-length-select">
+            <option value="hanchan">東南戦(半荘)</option>
+            <option value="tonpuusen">東風戦</option>
+          </select>
+        </label>
+        <label>CPUの強さ:
+          <select id="game-cpu-strength-select">
+            <option value="weak">初心者</option>
+            <option value="standard" selected>標準</option>
+            <option value="strong">強め</option>
+          </select>
+        </label>
+        <label>コーチ:
+          <select id="game-coach-select">
+            <option value="off">コーチOFF(何も表示しない)</option>
+            <option value="hint">ヒント(シャンテン・安全牌のみ)</option>
+            <option value="full" selected>フルコーチ(おすすめ+理由まで)</option>
+          </select>
+        </label>
+      </div>
+      <button id="game-start-btn" class="primary">対局を開始する</button>
+    </div>
+
+    <div id="game-table" hidden>
+      <div class="game-status-bar">
+        <span id="game-round-info" class="shanten-badge"></span>
+        <span id="game-wall-count" class="turn-info"></span>
+        <span id="game-kyotaku-info" class="turn-info"></span>
+        <label class="coach-inline">コーチ:
+          <select id="game-coach-select-inline">
+            <option value="off">OFF</option>
+            <option value="hint">ヒント</option>
+            <option value="full" selected>フルコーチ</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="player-status-grid" id="player-status-grid"></div>
+      <div class="discards-grid" id="discards-grid"></div>
+
+      <div class="hand-area">
+        <h3 id="game-self-title">あなたの手牌</h3>
+        <div id="game-self-fuuro" class="tile-row fuuro-row"></div>
+        <div id="game-hand" class="tile-row"></div>
+        <div id="game-status-line" class="palette-status"></div>
+      </div>
+
+      <div class="controls" id="game-action-buttons"></div>
+      <div class="controls" id="game-call-options" hidden></div>
+
+      <p id="game-furiten-note" class="disclaimer" hidden></p>
+
+      <div id="game-why-panel" class="explain-panel" hidden>
+        <h3>なぜ?</h3>
+        <div id="game-why-body"></div>
+      </div>
+
+      <div id="game-coach-panel" class="explain-panel" hidden>
+        <h3>コーチ</h3>
+        <div id="game-coach-body"></div>
+      </div>
+
+      <div id="game-result-panel" class="analysis-panel" hidden>
+        <div id="game-result-body"></div>
+        <div class="controls">
+          <button id="game-next-round-btn" class="primary">次の局へ</button>
+          <button id="game-save-kifu-btn">この対局を牌譜として保存</button>
+        </div>
+      </div>
+
+      <div id="game-match-over-panel" class="agari-banner" hidden>
+        <h3>対局終了</h3>
+        <div id="game-final-ranking"></div>
+        <div class="controls">
+          <button id="game-save-kifu-final-btn" class="primary">牌譜を保存する</button>
+          <button id="game-restart-btn">新しい対局を始める</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 牌譜・復習タブ ============ -->
+  <section id="tab-kifu" class="tab-panel">
+    <h2>牌譜・復習</h2>
+    <p class="hint-text">保存した対局を1手ずつ再生し、「このとき何を切るべきだったか」を振り返れます。</p>
+    <div id="kifu-list"></div>
+    <div id="kifu-viewer" hidden>
+      <div class="controls">
+        <button id="kifu-back-to-list-btn">一覧へ戻る</button>
+      </div>
+      <div class="status-bar">
+        <div class="shanten-badge" id="kifu-round-info"></div>
+        <div class="turn-info" id="kifu-step-info"></div>
+      </div>
+      <div class="player-status-grid" id="kifu-player-status-grid"></div>
+      <div class="discards-grid" id="kifu-discards-grid"></div>
+      <div class="hand-area">
+        <h3>手牌(再生時点)</h3>
+        <div id="kifu-hand" class="tile-row"></div>
+      </div>
+      <div class="controls">
+        <button id="kifu-prev-btn">← 前へ</button>
+        <button id="kifu-next-btn">次へ →</button>
+        <button id="kifu-analyze-btn" class="primary">この時点を分析する</button>
+      </div>
+      <div id="kifu-analysis" class="analysis-panel" hidden></div>
+    </div>
+  </section>
+
+  <!-- ============ 学習タブ ============ -->
+  <section id="tab-tutorial" class="tab-panel">
+    <h2>学習メニュー</h2>
+    <p class="hint-text">初心者向けのステップです。上から順に進めるのがおすすめですが、好きな順で構いません。</p>
+    <div id="tutorial-list"></div>
+  </section>
+
+  <!-- ============ トレーニングタブ ============ -->
+  <section id="tab-training" class="tab-panel">
+    <div class="status-bar">
+      <div class="shanten-badge" id="training-shanten">シャンテン: -</div>
+      <div class="turn-info" id="training-turn">ツモ回数: -</div>
+    </div>
+
+    <div class="hand-area">
+      <h2>手牌(14枚。1枚選んで切りましょう)</h2>
+      <div id="training-hand" class="tile-row"></div>
+    </div>
+
+    <div class="controls">
+      <button id="training-hint-btn">ヒントを表示</button>
+      <button id="training-answer-btn">答えを見る</button>
+      <button id="training-discard-btn" class="primary" disabled>この牌を切る</button>
+      <button id="training-sort-btn">並び替え</button>
+      <button id="training-new-btn">新しい手牌</button>
+    </div>
+
+    <p id="training-wall-empty" class="hint-text" hidden>山が尽きました。お疲れ様でした。「新しい手牌」で再スタートできます。</p>
+
+    <div id="training-result" class="result-panel" hidden></div>
+
+    <div id="training-wait" class="result-panel" hidden></div>
+
+    <div id="training-analysis" class="analysis-panel" hidden>
+      <h3>牌効率上のおすすめ</h3>
+      <p class="disclaimer">
+        この評価はシャンテン数・有効牌・受け入れ枚数という「牌効率」のみに基づきます。
+        打点・役・安全度・巡目・ドラ・押し引きなどは考慮していないため、
+        実戦での最善打と必ずしも一致するとは限りません。
+      </p>
+      <ol id="training-ranking"></ol>
+      <h3 class="section-title">打牌候補の比較表</h3>
+      <div id="training-compare-table"></div>
+    </div>
+
+    <div id="training-explain" class="explain-panel" hidden>
+      <h3>初心者向け解説(今の手牌の形)</h3>
+      <div id="training-highlight-legend"></div>
+      <div id="training-explain-body"></div>
+      <h4 class="section-title">この形からどう発展できるか</h4>
+      <div id="training-shape-growth"></div>
+    </div>
+
+    <div id="training-agari" class="agari-banner" hidden>
+      <p>アガリです。よくできました。</p>
+      <div id="training-agari-breakdown"></div>
+      <button id="training-agari-next" class="primary">次の練習へ</button>
+    </div>
+  </section>
+
+  <!-- ============ 何切る問題タブ ============ -->
+  <section id="tab-mondai" class="tab-panel">
+    <div class="status-bar">
+      <div class="shanten-badge" id="mondai-shanten">シャンテン: ?</div>
+    </div>
+
+    <div class="hand-area">
+      <h2>あなたなら何を切る?</h2>
+      <div id="mondai-hand" class="tile-row"></div>
+    </div>
+
+    <div class="controls">
+      <button id="mondai-answer-btn" class="primary" disabled>この牌に決定</button>
+      <button id="mondai-next-btn">次の問題</button>
+    </div>
+
+    <div id="mondai-result" class="result-panel" hidden></div>
+
+    <div id="mondai-wait" class="result-panel" hidden></div>
+
+    <div id="mondai-analysis" class="analysis-panel" hidden>
+      <h3>牌効率上のおすすめと解説</h3>
+      <p class="disclaimer">
+        この評価は牌効率(シャンテン数・受け入れ枚数)のみに基づく参考情報です。
+        打点・役・安全度などは考慮していません。
+      </p>
+      <ol id="mondai-ranking"></ol>
+      <h3 class="section-title">打牌候補の比較表</h3>
+      <div id="mondai-compare-table"></div>
+    </div>
+  </section>
+
+  <!-- ============ 手牌分析タブ ============ -->
+  <section id="tab-analysis" class="tab-panel">
+    <h2>手牌分析:好きな手牌を入力して調べる</h2>
+    <p class="hint-text">
+      雀魂などで実際に出てきた手牌を再現して、「何を切ればよかったのか」を復習できます。
+      下のパレットから牌をクリックして手牌に追加してください(1種類につき最大4枚、合計14枚まで)。
+      13枚の状態でも、現在の受け入れだけを確認できます。
+    </p>
+
+    <div class="hand-area">
+      <h3 id="analysis-hand-title">現在の手牌(クリックで取り除けます)</h3>
+      <div id="analysis-hand" class="tile-row"></div>
+      <div id="analysis-status" class="palette-status"></div>
+    </div>
+
+    <div class="controls">
+      <button id="analysis-run-btn" class="primary" disabled>この手牌を分析する</button>
+      <button id="analysis-edit-btn" hidden>手牌を編集し直す</button>
+      <button id="analysis-clear-btn">手牌をクリア</button>
+    </div>
+
+    <details id="analysis-scenario-io">
+      <summary>局面の保存・共有(JSON)</summary>
+      <p class="hint-text">現在の手牌をJSONとして書き出し、後で読み込むことができます。他のツールやAIに局面を渡す際にも使えます。</p>
+      <div class="controls">
+        <button id="analysis-export-btn">現在の局面をJSONに変換</button>
+        <button id="analysis-import-btn">下のテキストから読み込む</button>
+      </div>
+      <textarea id="analysis-scenario-json" rows="4" style="width:100%; box-sizing:border-box;" placeholder="ここにJSONが表示されます。読み込む場合はここに貼り付けてください。"></textarea>
+    </details>
+
+    <div id="analysis-palette-area">
+      <h3 class="section-title">牌を選ぶ</h3>
+      <div id="analysis-palette" class="palette-grid"></div>
+    </div>
+
+    <div id="analysis-results" hidden>
+      <div class="status-bar">
+        <div class="shanten-badge" id="analysis-shanten">シャンテン: -</div>
+      </div>
+
+      <div id="analysis-highlight-legend"></div>
+
+      <div id="analysis-agari" class="agari-banner" hidden>
+        <p>この手牌はすでにアガリの形です。</p>
+        <div id="analysis-agari-breakdown"></div>
+      </div>
+
+      <div id="analysis-wait" class="result-panel" hidden></div>
+      <div id="analysis-wait-yaku-preview" class="result-panel" hidden></div>
+
+      <div id="analysis-yaku-candidates" class="explain-panel" hidden>
+        <h3>現在狙えそうな役(参考)</h3>
+        <p class="disclaimer">
+          牌効率上のおすすめとは別の情報です。役を狙う打牌が、必ずしも牌効率上のおすすめと一致するとは限りません。
+        </p>
+        <div id="analysis-yaku-candidates-body"></div>
+      </div>
+
+      <div id="analysis-conditions" class="explain-panel" hidden>
+        <details id="analysis-conditions-details">
+          <summary>アガリ条件を設定</summary>
+
+          <div class="conditions-grid">
+            <label>アガリ方:
+              <select id="cond-tsumo-ron">
+                <option value="ron">ロン</option>
+                <option value="tsumo">ツモ</option>
+              </select>
+            </label>
+            <label>親/子:
+              <select id="cond-dealer">
+                <option value="child">子</option>
+                <option value="dealer">親</option>
+              </select>
+            </label>
+            <label>自風:
+              <select id="cond-seat-wind"></select>
+            </label>
+            <label>場風:
+              <select id="cond-round-wind"></select>
+            </label>
+            <label><input type="checkbox" id="cond-riichi" /> リーチ</label>
+            <label><input type="checkbox" id="cond-double-riichi" /> ダブルリーチ</label>
+            <label><input type="checkbox" id="cond-ippatsu" /> 一発</label>
+            <label><input type="checkbox" id="cond-last-tile" /> 最後の1枚(海底/河底)</label>
+            <label><input type="checkbox" id="cond-rinshan" /> 嶺上開花</label>
+            <label><input type="checkbox" id="cond-chankan" /> 槍槓</label>
+          </div>
+
+          <h4 class="section-title">ドラ</h4>
+          <p class="hint-text">
+            ドラ表示牌をクリックして選んでください(もう一度クリックで解除)。
+            <strong>ドラは役ではありません。</strong>ドラを何枚持っていても、他に役が無いとアガれません。
+          </p>
+          <div id="cond-dora-indicator" class="palette-grid"></div>
+          <div id="cond-dora-result" class="hint-text"></div>
+
+          <h4 class="section-title">赤ドラ</h4>
+          <p class="hint-text">手牌の中の5萬・5筒・5索のうち、赤ドラであるものの枚数を指定してください。</p>
+          <div id="cond-aka-dora" class="conditions-grid"></div>
+
+          <h4 class="section-title">ルール設定</h4>
+          <div class="conditions-grid">
+            <label><input type="checkbox" id="rule-kuitan" checked /> 喰いタンあり(鳴き未実装のため現状影響なし)</label>
+            <label><input type="checkbox" id="rule-aka" checked /> 赤ドラあり</label>
+            <label><input type="checkbox" id="rule-kiriage" /> 切り上げ満貫</label>
+            <label><input type="checkbox" id="rule-kazoe" checked /> 数え役満(13翻以上を役満扱い)</label>
+            <label><input type="checkbox" id="rule-double-yakuman" checked /> ダブル役満あり</label>
+          </div>
+        </details>
+      </div>
+
+      <p id="analysis-winning-tile-hint" class="hint-text" hidden>
+        アガリの分析には和了牌の指定が必要です。上の手牌から、アガった牌(最後の1枚)をクリックして選んでください。
+      </p>
+
+      <div id="analysis-yaku-result" class="analysis-panel" hidden>
+        <h3>成立役・点数</h3>
+        <div id="analysis-yaku-result-body"></div>
+      </div>
+
+      <div id="analysis-analysis" class="analysis-panel" hidden>
+        <h3>牌効率上のおすすめ</h3>
+        <p class="disclaimer">
+          この評価はシャンテン数・有効牌・受け入れ枚数という「牌効率」のみに基づきます。
+          打点・役・安全度・巡目・ドラ・押し引きなどは考慮していません。
+        </p>
+        <ol id="analysis-ranking"></ol>
+        <h3 class="section-title">打牌候補の比較表</h3>
+        <div id="analysis-compare-table"></div>
+      </div>
+
+      <div id="analysis-compare-self" hidden>
+        <h3 class="section-title">自分の選択と比較する</h3>
+        <p class="hint-text">上の手牌から1枚クリックして選ぶと、牌効率上のおすすめとの比較が表示されます(実際には切りません)。</p>
+        <div id="analysis-compare-cards"></div>
+      </div>
+
+      <div id="analysis-explain" class="explain-panel" hidden>
+        <h3>初心者向け解説(今の手牌の形)</h3>
+        <div id="analysis-explain-body"></div>
+        <h4 class="section-title">この形からどう発展できるか</h4>
+        <div id="analysis-shape-growth"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 用語辞典タブ ============ -->
+  <section id="tab-dictionary" class="tab-panel">
+    <h2>初心者向け用語辞典</h2>
+    <div id="dictionary-list"></div>
+  </section>
+
+  <!-- ============ 統計タブ ============ -->
+  <section id="tab-stats" class="tab-panel">
+    <h2>成績</h2>
+    <div id="stats-container"></div>
+    <button id="stats-reset-btn">統計をリセット</button>
+  </section>
+
+</main>
+
+<div id="tile-tooltip" class="tile-tooltip" hidden></div>
+
+<script src="js/tiles.js"></script>
+<script src="js/shanten.js"></script>
+<script src="js/ukeire.js"></script>
+<script src="js/evaluator.js"></script>
+<script src="js/handinfo.js"></script>
+<script src="js/handbuilder.js"></script>
+<script src="js/decomposition.js"></script>
+<script src="js/dora.js"></script>
+<script src="js/melds.js"></script>
+<script src="js/yaku.js"></script>
+<script src="js/scoring.js"></script>
+<script src="js/yakucandidates.js"></script>
+<script src="js/furiten.js"></script>
+<script src="js/safety.js"></script>
+<script src="js/pushfold.js"></script>
+<script src="js/cpu.js"></script>
+<script src="js/gamestate.js"></script>
+<script src="js/round.js"></script>
+<script src="js/kifu.js"></script>
+<script src="js/coach.js"></script>
+<script src="js/game.js"></script>
+<script src="js/dictionary.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/problems.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+<script src="js/appgame.js"></script>
+<script src="js/appkifu.js"></script>
+<script src="js/apptutorial.js"></script>
+</body>
+</html>
