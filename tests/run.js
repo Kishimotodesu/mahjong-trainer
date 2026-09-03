@@ -1704,6 +1704,46 @@ test('CPU.decideDiscard: 手牌が極端に少ない異常形でも例外を投�
   });
 });
 
+test('yakumanScore: 役満ツモの支払い額(tsumoDealer/tsumoNonDealer)が必ず数値になる', () => {
+  // 子の役満ツモ: 親から16000・子から8000ずつ(合計32000)
+  const child = Scoring.yakumanScore(1, false, true);
+  assert.strictEqual(child.tsumoDealer, 16000, '子役満ツモの親の支払いが不正');
+  assert.strictEqual(child.tsumoNonDealer, 8000, '子役満ツモの子の支払いが不正');
+  assert.strictEqual(child.total, 32000);
+
+  // 親の役満ツモ: 子が全員16000ずつ(合計48000)
+  const dealer = Scoring.yakumanScore(1, true, true);
+  assert.strictEqual(dealer.tsumoNonDealer, 16000, '親役満ツモの子の支払いが不正');
+  assert.strictEqual(dealer.total, 48000);
+
+  // ダブル役満も必ず埋まっていること
+  const dbl = Scoring.yakumanScore(2, false, true);
+  assert.ok(Number.isFinite(dbl.tsumoDealer) && Number.isFinite(dbl.tsumoNonDealer));
+  assert.strictEqual(dbl.total, 64000);
+
+  // ロンは ron が数値
+  assert.strictEqual(Scoring.yakumanScore(1, false, false).ron, 32000);
+  assert.strictEqual(Scoring.yakumanScore(1, true, false).ron, 48000);
+});
+
+test('applyWinPayments: 役満ツモでも点数がNaNにならず合計が保存される', () => {
+  const rng = mulberry32(4242);
+  let match = GameState.createMatch({ humanSeat: -1 });
+  match = GameState.startRound(match, rng);
+  match.honba = 1;
+  match.kyotaku = 0;
+  const before = match.players.reduce((a, p) => a + p.score, 0);
+  const winnerSeat = (match.dealerSeat + 1) % 4;
+  const score = Scoring.yakumanScore(1, false, true);
+  const results = [{ seat: winnerSeat, isTsumo: true, scoreResult: { hasYaku: true, best: { score } } }];
+  RoundEngine.applyWinPayments(match, results, null);
+  match.players.forEach((p, i) => {
+    assert.ok(Number.isFinite(p.score), 'seat' + i + 'の点数がNaNになった');
+  });
+  const after = match.players.reduce((a, p) => a + p.score, 0);
+  assert.strictEqual(after, before, '点数の合計が保存されていない');
+});
+
 // ==================================================
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

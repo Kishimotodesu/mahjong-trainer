@@ -164,13 +164,31 @@
   function yakumanScore(totalMultiple, isDealer, isTsumo) {
     const base = 8000 * totalMultiple;
     if (isTsumo) {
+      // 通常役と同じく tsumoDealer / tsumoNonDealer を必ず埋める
+      // (未設定だと点棒移動の計算がNaNになるため)
       if (isDealer) {
         const each = base * 2;
-        return { base, tier: '役満', total: each * 3, paymentText: `子は全員 ${each}点ずつ支払い(合計${each * 3}点)`, isYakuman: true };
+        return {
+          base,
+          tier: '役満',
+          total: each * 3,
+          paymentText: `子は全員 ${each}点ずつ支払い(合計${each * 3}点)`,
+          isYakuman: true,
+          tsumoDealer: null,
+          tsumoNonDealer: each,
+        };
       }
       const fromDealer = base * 2;
       const fromChild = base * 1;
-      return { base, tier: '役満', total: fromDealer + fromChild * 2, paymentText: `親は${fromDealer}点、子は${fromChild}点ずつ支払い(合計${fromDealer + fromChild * 2}点)`, isYakuman: true };
+      return {
+        base,
+        tier: '役満',
+        total: fromDealer + fromChild * 2,
+        paymentText: `親は${fromDealer}点、子は${fromChild}点ずつ支払い(合計${fromDealer + fromChild * 2}点)`,
+        isYakuman: true,
+        tsumoDealer: fromDealer,
+        tsumoNonDealer: fromChild,
+      };
     }
     const multiplier = isDealer ? 6 : 4;
     const points = base * multiplier;

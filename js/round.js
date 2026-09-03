@@ -461,14 +461,20 @@
         match.players.forEach((other) => {
           if (other.seat === seat) return;
           const isPayerDealer = other.seat === match.dealerSeat;
-          const amount = (isPayerDealer ? score.tsumoDealer : score.tsumoNonDealer) + 100 * match.honba;
+          const perPlayer = isPayerDealer ? score.tsumoDealer : score.tsumoNonDealer;
+          // 保険: 支払い額が欠けている場合でもNaNを持ち込まない
+          const safePerPlayer = typeof perPlayer === 'number' && isFinite(perPlayer)
+            ? perPlayer
+            : Math.ceil((score.total || 0) / 3 / 100) * 100;
+          const amount = safePerPlayer + 100 * match.honba;
           other.score -= amount;
           p.score += amount;
         });
       } else {
         const p = player(match, seat);
-        p.score += score.ron + honbaBonus;
-        player(match, loserSeat).score -= score.ron + honbaBonus;
+        const ronPoints = typeof score.ron === 'number' && isFinite(score.ron) ? score.ron : score.total || 0;
+        p.score += ronPoints + honbaBonus;
+        player(match, loserSeat).score -= ronPoints + honbaBonus;
       }
     });
 
@@ -743,6 +749,7 @@
     canTsumoAgari,
     canDeclareRiichi,
     endRoundWin,
+    applyWinPayments,
     endRoundRyuukyoku,
     prepareNextRound,
     stepCpu,
