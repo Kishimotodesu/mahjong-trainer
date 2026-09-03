@@ -1630,3 +1630,189 @@ body {
     font-size: 0.9rem;
   }
 }
+
+/* ==================================================
+   ルールを牌で学ぶ ミニレッスン(V1.5)
+   ================================================== */
+
+.lesson-summary {
+  margin-bottom: 10px;
+}
+
+.lesson-card {
+  background: var(--bg-panel);
+  border-radius: var(--radius);
+  border-left: 4px solid #2c5245;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.lesson-card.status-needs_review { border-left-color: var(--bad); }
+.lesson-card.status-studied { border-left-color: #c98a2f; }
+.lesson-card.status-mastered { border-left-color: var(--good); }
+
+.lesson-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.lesson-status-badge {
+  font-size: 0.72rem;
+  font-weight: bold;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #0c2a20;
+  flex-shrink: 0;
+}
+
+.lesson-status-badge.status-needs_review { color: var(--bad); }
+.lesson-status-badge.status-studied { color: #e0a34a; }
+.lesson-status-badge.status-mastered { color: var(--good); }
+.lesson-status-badge.status-not_started { color: var(--text-dim); }
+
+.lesson-card button {
+  margin-top: 6px;
+}
+
+.lesson-visual {
+  background: #0c2a20;
+  border-radius: 8px;
+  padding: 10px;
+  margin: 10px 0;
+}
+
+.lesson-tile-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.lesson-tile {
+  width: 34px;
+  height: 46px;
+  font-size: 0.8rem;
+}
+
+.lesson-tile-highlight {
+  box-shadow: 0 0 0 2px var(--accent-strong);
+}
+
+.lesson-tile-blocking {
+  box-shadow: 0 0 0 2px var(--bad);
+  background: rgba(220, 90, 90, 0.25) !important;
+}
+
+.lesson-tile-pairs {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.lesson-tile-pair-box {
+  text-align: center;
+}
+
+.lesson-wait-box {
+  margin-bottom: 8px;
+}
+
+.lesson-visual-label {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-bottom: 3px;
+}
+
+.lesson-context {
+  font-size: 0.85rem;
+  color: var(--accent-strong);
+  margin-top: 6px;
+}
+
+.lesson-riichi-badge {
+  display: inline-block;
+  background: rgba(220, 90, 90, 0.25);
+  color: var(--bad);
+  font-size: 0.75rem;
+  font-weight: bold;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-top: 4px;
+}
+
+.lesson-body-text,
+.lesson-question {
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.lesson-question {
+  font-weight: bold;
+}
+
+.lesson-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.lesson-choice-btn {
+  min-height: 48px;
+  text-align: left;
+  padding: 10px 14px;
+}
+
+.lesson-choice-btn.chosen {
+  border-color: var(--accent-strong);
+}
+
+.lesson-choice-btn.correct-answer {
+  border-color: var(--good);
+  box-shadow: 0 0 0 2px var(--good);
+}
+
+.lesson-nav {
+  margin-top: 12px;
+}
+
+.rank-tie-note {
+  font-size: 0.78rem;
+  color: var(--accent-strong);
+}
+
+.rank-probability {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+@media (max-width: 560px) {
+  .lesson-tile {
+    width: 30px;
+    height: 42px;
+    font-size: 0.72rem;
+  }
+  .lesson-choice-btn {
+    width: 100%;
+  }
+  .lesson-nav {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-panel);
+    border-top: 1px solid #2c5245;
+    padding: 8px;
+    margin: 8px -8px 0;
+    display: flex;
+    gap: 6px;
+  }
+  .lesson-nav button {
+    flex: 1 1 auto;
+  }
+}
+
+.dict-lesson-link {
+  margin-top: 6px;
+  font-size: 0.8rem;
+}

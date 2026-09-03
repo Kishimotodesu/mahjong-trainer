@@ -209,6 +209,26 @@
   // 副露(鳴き)の判定
   // ==================================================
 
+  /**
+   * ある捨て牌に対して、フリテンさえなければロンできていたかどうかを調べる。
+   * UI側で「アガリ牌でしたがフリテンのためロンできません」という初心者向けの
+   * 説明を出すために使う(computeCallOptionsと同じ判定ロジックを再利用する)。
+   * @returns {{hasYaku:boolean, wouldWin:boolean, blockedByFuriten:boolean, furitenState:?object}}
+   */
+  function checkFuritenBlockedRon(match, seat, tile) {
+    const p = player(match, seat);
+    const testConcealed = p.handCounts.slice();
+    testConcealed[tile]++;
+    const ctx = buildCtx(match, seat, tile, false, {});
+    const doraSetting = doraSettingFor(match, p.riichi);
+    const scoreResult = Scoring.scoreHand(testConcealed, ctx, {}, doraSetting, p.fuuro);
+    const hasYaku = !!(scoreResult.complete && scoreResult.hasYaku);
+    if (!hasYaku) return { hasYaku: false, wouldWin: false, blockedByFuriten: false, furitenState: null };
+    const myWait = computeWaitTiles(p);
+    const furitenState = Furiten.getFuritenState(p, myWait);
+    return { hasYaku: true, wouldWin: true, blockedByFuriten: !furitenState.canRon, furitenState };
+  }
+
   function computeCallOptions(match) {
     const round = match.currentRound;
     const { seat: fromSeat, tile } = round.pendingDiscard;
@@ -742,6 +762,7 @@
     discardTile,
     computeCallOptions,
     computeWaitTiles,
+    checkFuritenBlockedRon,
     resolveCalls,
     resolveCallsWithHuman,
     declareAnkan,

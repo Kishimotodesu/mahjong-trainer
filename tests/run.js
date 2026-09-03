@@ -28,6 +28,9 @@ const Kifu = require(path.join(__dirname, '..', 'js', 'kifu.js'));
 const Coach = require(path.join(__dirname, '..', 'js', 'coach.js'));
 const Review = require(path.join(__dirname, '..', 'js', 'review.js'));
 const Problems = require(path.join(__dirname, '..', 'js', 'problems.js'));
+const Probability = require(path.join(__dirname, '..', 'js', 'probability.js'));
+const Lessons = require(path.join(__dirname, '..', 'js', 'lessons.js'));
+const LessonEngine = require(path.join(__dirname, '..', 'js', 'lessonengine.js'));
 
 function mulberry32(seed) {
   return function () {
@@ -1753,6 +1756,27 @@ require(path.join(__dirname, 'review-tests.js'))({
   Evaluator,
   Review,
   Problems,
+});
+
+require(path.join(__dirname, 'probability-tests.js'))({
+  test,
+  assert,
+  Probability,
+});
+
+require(path.join(__dirname, 'lesson-tests.js'))({
+  test,
+  assert,
+  Tiles,
+  Yaku,
+  Furiten,
+  Scoring,
+  GameState,
+  RoundEngine,
+  CPU,
+  Lessons,
+  LessonEngine,
+  mulberry32,
 });
 
 // ==================================================

@@ -99,20 +99,51 @@
    * @param {Array} discards evaluator.analyzeHand().discards (ソート済み)
    * @param {{limit:number}} options
    */
+  /**
+   * discards(シャンテン数昇順・受け入れ枚数降順にソート済み)から、
+   * 同じ(シャンテン数, 受け入れ枚数)のものを同順位としてまとめる。
+   * 牌効率が完全に同じ候補に、意味の無い1位・2位の差を付けないため。
+   * @returns {number[]} 各discardsの順位(1始まり、同率は同じ数字)
+   */
+  function computeTiedRanks(discards) {
+    const ranks = [];
+    let rank = 1;
+    for (let i = 0; i < discards.length; i++) {
+      if (i > 0) {
+        const prev = discards[i - 1];
+        const cur = discards[i];
+        if (!(prev.resultShanten === cur.resultShanten && prev.ukeireTotal === cur.ukeireTotal)) {
+          rank = i + 1;
+        }
+      }
+      ranks.push(rank);
+    }
+    return ranks;
+  }
+
   function renderRanking(container, discards, options) {
     options = options || {};
     const limit = options.limit || 3;
     container.innerHTML = '';
 
-    discards.slice(0, limit).forEach((d, i) => {
+    const shown = discards.slice(0, limit);
+    const ranks = computeTiedRanks(discards);
+    const tieGroupSize = {};
+    ranks.forEach((r) => {
+      tieGroupSize[r] = (tieGroupSize[r] || 0) + 1;
+    });
+
+    shown.forEach((d, i) => {
+      const rank = ranks[i];
+      const isTie = tieGroupSize[rank] > 1;
       const li = document.createElement('li');
-      li.className = 'rank-item rank-' + (i + 1);
+      li.className = 'rank-item rank-' + rank + (isTie ? ' rank-tie' : '');
 
       const header = document.createElement('div');
       header.className = 'rank-header';
       const rankNum = document.createElement('span');
       rankNum.className = 'rank-num';
-      rankNum.textContent = `${i + 1}位`;
+      rankNum.textContent = isTie ? `同率${rank}位` : `${rank}位`;
       const tileLabel = document.createElement('span');
       tileLabel.textContent = `${d.label}(${d.fullName})を切る`;
       header.appendChild(rankNum);
@@ -121,6 +152,20 @@
       const meta = document.createElement('div');
       meta.className = 'rank-meta';
       meta.textContent = `打牌後シャンテン数: ${d.resultShanten} / 有効牌: ${d.ukeireKinds}種類 ${d.ukeireTotal}枚`;
+      if (isTie) {
+        const tieNote = document.createElement('div');
+        tieNote.className = 'rank-tie-note';
+        tieNote.textContent = '牌効率上は同率です。役の可能性など別の観点で選んでも構いません。';
+        meta.appendChild(document.createElement('br'));
+        meta.appendChild(tieNote);
+      }
+      if (options.unseenTotal && window.MJ && window.MJ.Probability) {
+        const prob = window.MJ.Probability.nextDrawProbability(d.ukeireTotal, options.unseenTotal);
+        const probLine = document.createElement('div');
+        probLine.className = 'rank-probability';
+        probLine.textContent = `次のツモで手が進む確率: 約${window.MJ.Probability.toPercentLabel(prob)}`;
+        meta.appendChild(probLine);
+      }
 
       const reason = document.createElement('div');
       reason.className = 'rank-reason';
@@ -200,6 +245,17 @@
       details.appendChild(summary);
       details.appendChild(shortP);
       details.appendChild(detailP);
+      if (t.lessonId && window.MJ && window.MJ.Lessons && window.MJ.Lessons.getLesson(t.lessonId)) {
+        const btn = document.createElement('button');
+        btn.className = 'dict-lesson-link';
+        btn.textContent = '例題を解く(' + window.MJ.Lessons.getLesson(t.lessonId).title + ')';
+        btn.addEventListener('click', () => {
+          const tabBtn = document.querySelector('.tab-btn[data-tab="tutorial"]');
+          if (tabBtn) tabBtn.click();
+          if (window.MJ.AppLesson) window.MJ.AppLesson.startLesson(t.lessonId);
+        });
+        details.appendChild(btn);
+      }
       container.appendChild(details);
     });
   }
@@ -316,23 +372,31 @@
     const topLimit = options.topLimit || 3;
     container.innerHTML = '';
 
+    const showProb = !!(options.unseenTotal && window.MJ && window.MJ.Probability);
+
     function buildTable(rows) {
       const table = document.createElement('table');
       table.className = 'compare-table';
       const thead = document.createElement('thead');
       thead.innerHTML =
-        '<tr><th>打牌</th><th>打牌後<br>シャンテン</th><th>有効牌<br>種類</th><th>受け入れ<br>枚数</th><th>評価</th></tr>';
+        '<tr><th>打牌</th><th>打牌後<br>シャンテン</th><th>有効牌<br>種類</th><th>受け入れ<br>枚数</th>' +
+        (showProb ? '<th>次のツモで<br>改善</th>' : '') +
+        '<th>評価</th></tr>';
       table.appendChild(thead);
 
       const tbody = document.createElement('tbody');
       rows.forEach((d) => {
         const tr = document.createElement('tr');
         tr.className = 'grade-row-' + d.grade.grade;
+        const probCell = showProb
+          ? `<td>${window.MJ.Probability.toPercentLabel(window.MJ.Probability.nextDrawProbability(d.ukeireTotal, options.unseenTotal))}</td>`
+          : '';
         tr.innerHTML = `
           <td>${d.label}</td>
           <td>${d.resultShanten}</td>
           <td>${d.ukeireKinds}種</td>
           <td>${d.ukeireTotal}枚</td>
+          ${probCell}
           <td>${d.grade.gradeLabel.split(' ')[0]}</td>
         `;
         tbody.appendChild(tr);

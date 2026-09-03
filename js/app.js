@@ -5,6 +5,12 @@
 (function () {
   'use strict';
 
+  /** 局面情報が無いモード用: 自分の手牌だけを考慮した理論値でunseenTotalを求める */
+  function unseenTotalFor(counts14) {
+    if (!counts14 || !window.MJ || !window.MJ.Probability) return null;
+    return window.MJ.Probability.unseenTotalFromHandOnly(counts14);
+  }
+
   const Tiles = window.MJ.Tiles;
   const Game = window.MJ.Game;
   const Evaluator = window.MJ.Evaluator;
@@ -111,6 +117,7 @@
         if (tab === 'mondai' && !mondai.problem) startNewMondai();
         if (tab === 'kifu' && window.MJ.AppKifu) window.MJ.AppKifu.refreshList();
         if (tab === 'review' && window.MJ.AppReview) window.MJ.AppReview.render();
+        if (tab === 'tutorial' && window.MJ.AppLesson) window.MJ.AppLesson.render();
       });
     });
   }
@@ -145,8 +152,8 @@
 
   function refreshTrainingAnalysis() {
     training.tiles14 = computeTiles14(training.gameState);
-    const counts14 = Tiles.toCounts(training.tiles14);
-    training.analysis = Evaluator.analyzeHand(counts14);
+    training.counts14 = Tiles.toCounts(training.tiles14);
+    training.analysis = Evaluator.analyzeHand(training.counts14);
   }
 
   function handleTrainingTileClick(tileValue, position) {
@@ -299,8 +306,8 @@
     if (showAnalysis && !gs.isAgari) {
       analysisPanel.hidden = false;
       const limit = training.revealLevel === 'full' ? 3 : 1;
-      UI.renderRanking(document.getElementById('training-ranking'), training.analysis.discards, { limit });
-      UI.renderComparisonTable(document.getElementById('training-compare-table'), training.analysis.discards, { topLimit: 3 });
+      UI.renderRanking(document.getElementById('training-ranking'), training.analysis.discards, { limit, unseenTotal: unseenTotalFor(training.counts14) });
+      UI.renderComparisonTable(document.getElementById('training-compare-table'), training.analysis.discards, { topLimit: 3, unseenTotal: unseenTotalFor(training.counts14) });
     } else {
       analysisPanel.hidden = true;
     }
@@ -459,8 +466,8 @@
       }
 
       analysisPanel.hidden = false;
-      UI.renderRanking(document.getElementById('mondai-ranking'), mondai.problem.analysis.discards, { limit: 3 });
-      UI.renderComparisonTable(document.getElementById('mondai-compare-table'), mondai.problem.analysis.discards, { topLimit: 3 });
+      UI.renderRanking(document.getElementById('mondai-ranking'), mondai.problem.analysis.discards, { limit: 3, unseenTotal: unseenTotalFor(mondai.problem.counts14) });
+      UI.renderComparisonTable(document.getElementById('mondai-compare-table'), mondai.problem.analysis.discards, { topLimit: 3, unseenTotal: unseenTotalFor(mondai.problem.counts14) });
     } else {
       resultPanel.hidden = true;
       waitPanel.hidden = true;
@@ -654,8 +661,8 @@
       waitPanel.hidden = true;
       if (!isAgari) {
         analysisPanel.hidden = false;
-        UI.renderRanking(document.getElementById('analysis-ranking'), analysisTab.analysis.discards, { limit: 3 });
-        UI.renderComparisonTable(document.getElementById('analysis-compare-table'), analysisTab.analysis.discards, { topLimit: 3 });
+        UI.renderRanking(document.getElementById('analysis-ranking'), analysisTab.analysis.discards, { limit: 3, unseenTotal: unseenTotalFor(analysisTab.counts) });
+        UI.renderComparisonTable(document.getElementById('analysis-compare-table'), analysisTab.analysis.discards, { topLimit: 3, unseenTotal: unseenTotalFor(analysisTab.counts) });
         compareSelfSection.hidden = false;
         renderAnalysisCompareSelf();
       } else {

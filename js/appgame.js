@@ -173,6 +173,7 @@
         source: 'game',
         autoSaved: true,
         autoReasons: reasons,
+        windCtx: windCtx0(gameTab.match, p),
       });
     } catch (e) {
       // 復習帳への保存に失敗しても対局は続行する
@@ -283,14 +284,28 @@
       el.textContent = '他家の手番です...';
     }
 
-    if (p.furitenTemporary || p.furitenRiichi) {
-      const waitTiles = Round.computeWaitTiles(p);
-      const msg = window.MJ.Furiten.explainFuriten(p, waitTiles);
-      furitenEl.hidden = !msg;
-      furitenEl.textContent = msg || '';
-    } else {
-      furitenEl.hidden = true;
+    const waitTiles = Round.computeWaitTiles(p);
+    let furitenMsg = null;
+    if (waitTiles.length > 0) {
+      const state = window.MJ.Furiten.getFuritenState(p, waitTiles);
+      if (state.type !== 'none') {
+        furitenMsg = '[フリテン] ' + state.beginnerMessage + ' (ロン: 不可 / ツモ: 可能)';
+      }
     }
+
+    // 他家の手番で、自分のアガリ牌が出たのにフリテンでロンできなかった場合の説明(初心者は
+    // ロンボタン自体が出ないため理由が分からない。「なぜ?」で詳細を確認できるようにする)
+    gameTab.lastMissedRonNote = null;
+    if (round.phase === 'awaiting_calls' && round.pendingDiscard && round.pendingDiscard.seat !== HUMAN_SEAT) {
+      const check = Round.checkFuritenBlockedRon(match, HUMAN_SEAT, round.pendingDiscard.tile);
+      if (check.hasYaku && check.blockedByFuriten) {
+        gameTab.lastMissedRonNote = Tiles.shortLabel(round.pendingDiscard.tile) + 'はアガリ牌でしたが、フリテンのためロンできません。';
+        if (!furitenMsg) furitenMsg = '[フリテン] ' + gameTab.lastMissedRonNote + ' ' + check.furitenState.beginnerMessage;
+      }
+    }
+
+    furitenEl.hidden = !furitenMsg;
+    furitenEl.textContent = furitenMsg || '';
   }
 
   function renderActionButtons() {
@@ -377,6 +392,58 @@
     return match.players.filter((p) => p.seat !== HUMAN_SEAT && p.riichi);
   }
 
+  function windCtx0(match, p) {
+    return { seatWind: p.seatWind, roundWind: roundWindTileOf(match) };
+  }
+
+  /**
+   * 選択中の牌が字牌の場合、その字牌が今どんな状態か(孤立/対子/役牌候補/客風など)を
+   * 初心者向けに1文で説明する。既存のYaku.isYakuhaiTriplet(=lessonengineと共通)を使い、
+   * ここで役判定を独自にハードコードしない。
+   */
+  function buildHonorSelectionNote(counts14, windCtx) {
+    if (gameTab.selectedPosition === null) return null;
+    const tiles = currentDisplayTiles();
+    const tile = tiles[gameTab.selectedPosition];
+    if (tile === undefined || !Tiles.isHonor(tile)) return null;
+
+    const count = counts14[tile];
+    const label = Tiles.shortLabel(tile);
+    const isDragon = window.MJ.Yaku.DRAGONS.includes(tile);
+
+    if (count === 1) {
+      return isDragon
+        ? label + 'は現在1枚だけなので順子には使えません。ただし三元牌なので、あと2枚集まれば役牌になります。'
+        : tileWindNote(tile, windCtx, label + 'は現在1枚だけの字牌です。');
+    }
+    if (count === 2) {
+      const wouldBeYaku = window.MJ.LessonEngine.yakuhaiFromCount(tile, 3, windCtx);
+      return (
+        label +
+        'が対子になりました。もう1枚' +
+        label +
+        'が来るか、他家の' +
+        label +
+        'をポンすると' +
+        (wouldBeYaku ? '役牌を作れます(現時点ではまだ役は成立していません)。' : '面子は作れますが、この牌は役牌にはなりません。')
+      );
+    }
+    if (count >= 3) {
+      const isYaku = window.MJ.LessonEngine.yakuhaiFromCount(tile, count, windCtx);
+      return isYaku
+        ? label + 'の刻子(槓子)があるため役牌が成立しています。'
+        : label + 'は刻子(槓子)になっていますが、場風・自風のどちらでもないため役牌にはなりません。';
+    }
+    return null;
+  }
+
+  function tileWindNote(tile, windCtx, prefix) {
+    if (!window.MJ.Yaku.WINDS.includes(tile)) return prefix;
+    if (tile === windCtx.seatWind) return prefix + 'あなたの自風牌なので、3枚にすると役牌になります。';
+    if (tile === windCtx.roundWind) return prefix + '今の場風なので、3枚にすると役牌になります。';
+    return prefix + '現在の場風でも自風でもないため、3枚あっても役牌にはなりません(客風)。';
+  }
+
   function renderCoachPanel() {
     const panel = document.getElementById('game-coach-panel');
     const body = document.getElementById('game-coach-body');
@@ -442,6 +509,15 @@
     }
 
     if (gameTab.coachMode === 'hint') return;
+
+    // 字牌コーチ: 選択中の牌が字牌なら、今の価値(孤立/対子/役牌候補/客風)を説明する
+    const honorNote = buildHonorSelectionNote(counts14, windCtx0(match, p));
+    if (honorNote) {
+      const honorLine = document.createElement('div');
+      honorLine.className = 'hint-text lesson-context-note';
+      honorLine.textContent = honorNote;
+      body.appendChild(honorLine);
+    }
 
     // フルコーチ: 多面的評価テーブル + 押し引き + なぜ？
     const doraTiles = GameState.currentDoraIndicators(round).map((ind) => window.MJ.Dora.doraTileFromIndicator(ind));

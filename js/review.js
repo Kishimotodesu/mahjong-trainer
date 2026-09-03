@@ -69,6 +69,22 @@
       short: '役に絡まない字牌をいつ切るか',
       description: '字牌処理: 東南西北や白發中の扱いです。2枚以上なら使い道がありますが、1枚だけなら早めに整理します。',
     },
+    役牌候補: {
+      short: '3枚集めると役になる字牌',
+      description: '役牌候補: 白・發・中(三元牌)や、今の場風・自風と一致する風牌です。3枚(刻子)にすると役が1つ確保できます。',
+    },
+    客風: {
+      short: '3枚集めても役にならない風牌',
+      description: '客風(きゃふー): 今の場風でも自風でもない風牌です。面子にはなりますが、何枚集めても役牌にはなりません。',
+    },
+    字牌対子: {
+      short: '字牌2枚をどう活かすか',
+      description: '字牌対子: 字牌が2枚(対子)ある状態です。雀頭にできますが、役牌にするにはあと1枚集める必要があります。',
+    },
+    字牌同率比較: {
+      short: '孤立字牌がどちらも同じ価値の場合',
+      description: '字牌同率比較: 複数の孤立字牌でシャンテン数・受け入れ枚数が同じ場合、牌効率上は同率です。役の可能性など別の観点で選んでも構いません。',
+    },
   };
 
   const ALL_TAGS = Object.keys(TAG_INFO);
@@ -92,11 +108,18 @@
     return false;
   }
 
+  const DRAGON_TILES = [31, 32, 33];
+  const WIND_TILES = [27, 28, 29, 30];
+
   /**
    * 手牌14枚と分析結果から学習タグを判定する。
    * 既存の形判定(shanten.jsのブロック分解)をそのまま利用する。
+   * @param {number[]} counts14
+   * @param {object} [analysis]
+   * @param {{seatWind:number, roundWind:number}} [windCtx] 分かる場合のみ渡す(自風・客風の判定に使う)。
+   *   省略しても既存の呼び出し元との互換性は保たれる(客風・役牌候補の判定を一部省略するだけ)。
    */
-  function detectTags(counts14, analysis) {
+  function detectTags(counts14, analysis, windCtx) {
     const tags = [];
     const add = (t) => {
       if (tags.indexOf(t) === -1) tags.push(t);
@@ -109,17 +132,35 @@
       if (b.type === 'ryanmen') add('両面');
       else if (b.type === 'kanchan') add('嵌張');
       else if (b.type === 'penchan') add('辺張');
-      else if (b.type === 'pair') add('対子');
+      else if (b.type === 'pair') {
+        add('対子');
+        if (b.tiles[0] >= 27) add('字牌対子');
+      }
     });
 
     if (info.discards.some((d) => d.wasIsolated)) add('孤立牌');
 
-    // 字牌が手にあれば字牌処理の判断が発生する
+    // 字牌が手にあれば字牌処理の判断が発生する(孤立/役牌候補/客風の文脈も分かれば追加する)
+    let hasHonor = false;
     for (let i = 27; i < Tiles.TILE_COUNT; i++) {
-      if (counts14[i] > 0) {
-        add('字牌処理');
-        break;
+      if (counts14[i] <= 0) continue;
+      hasHonor = true;
+      if (DRAGON_TILES.indexOf(i) !== -1) {
+        add('役牌候補');
+      } else if (WIND_TILES.indexOf(i) !== -1 && windCtx) {
+        if (i === windCtx.seatWind || i === windCtx.roundWind) add('役牌候補');
+        else add('客風');
       }
+    }
+    if (hasHonor) add('字牌処理');
+
+    // 孤立字牌同士でシャンテン数・受け入れ枚数が完全に同じ(牌効率上は同率)組がある場合
+    const isolatedHonorDiscards = info.discards.filter((d) => d.tile >= 27 && d.wasIsolated);
+    if (isolatedHonorDiscards.length >= 2) {
+      const tied = isolatedHonorDiscards.some((a, i) =>
+        isolatedHonorDiscards.some((b, j) => i !== j && a.resultShanten === b.resultShanten && a.ukeireTotal === b.ukeireTotal)
+      );
+      if (tied) add('字牌同率比較');
     }
 
     // 切るとシャンテンが戻る候補があるか
@@ -340,7 +381,7 @@
         ukeireTiles: (best.ukeireTiles || []).slice(0, 10),
         explanation: best.reason || '',
         beginnerPoint: buildBeginnerPoint(analysis, chosen),
-        tags: detectTags(counts14, analysis),
+        tags: detectTags(counts14, analysis, input.windCtx),
         source: input.source || 'mondai',
         createdAt: now,
         lastAnsweredAt: now,
