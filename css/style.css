@@ -908,40 +908,55 @@ tr.grade-row-bad td { background: rgba(209, 73, 91, 0.1); }
 
 .discards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
   margin-bottom: 14px;
 }
 
 .discard-pile-box {
   background: #0c2a20;
   border-radius: 8px;
-  padding: 6px;
-  min-height: 46px;
+  border: 2px solid transparent;
+  padding: 8px;
+  min-height: 52px;
+}
+
+.discard-pile-box.is-turn {
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 1px var(--accent-strong);
+}
+
+.discard-pile-box.is-riichi {
+  background: rgba(220, 90, 90, 0.12);
 }
 
 .discard-pile-label {
-  font-size: 0.7rem;
+  font-size: 0.8rem;
+  font-weight: bold;
   color: var(--text-dim);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+.discard-pile-box.is-turn .discard-pile-label {
+  color: var(--accent-strong);
 }
 
 .discard-pile-tiles {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
+  gap: 3px;
 }
 
 .mini-tile {
-  width: 22px;
-  height: 30px;
+  width: 27px;
+  height: 37px;
   background: var(--tile-bg);
   border: 1px solid var(--tile-border);
   border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.55rem;
+  font-size: 0.7rem;
   font-weight: bold;
   color: #222;
   position: relative;
@@ -955,6 +970,10 @@ tr.grade-row-bad td { background: rgba(209, 73, 91, 0.1); }
 .mini-tile.riichi-tile {
   border-color: var(--bad);
   box-shadow: 0 0 0 1px var(--bad);
+}
+
+.mini-tile.mini-tile-latest {
+  box-shadow: 0 0 0 2px var(--accent-strong);
 }
 
 .fuuro-row {
@@ -1130,12 +1149,12 @@ body {
     padding: 5px;
   }
   .discard-pile-label {
-    font-size: 0.65rem;
+    font-size: 0.72rem;
   }
   .mini-tile {
-    width: 19px;
-    height: 26px;
-    font-size: 0.5rem;
+    width: 24px;
+    height: 33px;
+    font-size: 0.62rem;
   }
 
   .coach-eval-table {
@@ -1192,9 +1211,9 @@ body {
   }
 
   .mini-tile {
-    width: 17px;
-    height: 23px;
-    font-size: 0.45rem;
+    width: 21px;
+    height: 29px;
+    font-size: 0.56rem;
   }
 
   .app-header h1 {
@@ -1252,8 +1271,9 @@ body {
     height: 58px;
   }
   .mini-tile {
-    width: 15px;
-    height: 21px;
+    width: 19px;
+    height: 26px;
+    font-size: 0.5rem;
   }
 }
 
@@ -1815,4 +1835,51 @@ body {
 .dict-lesson-link {
   margin-top: 6px;
   font-size: 0.8rem;
+}
+
+/* ==================================================
+   鳴き(ポン・チー・カン)のガイド表示(V1.6)
+   ================================================== */
+
+.call-option-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-right: 8px;
+  margin-bottom: 8px;
+}
+
+.call-advice-note {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  max-width: 220px;
+  line-height: 1.4;
+}
+
+.call-advice-good .call-advice-note { color: var(--good); }
+.call-advice-fair .call-advice-note { color: var(--text-dim); }
+.call-advice-caution .call-advice-note { color: #e0a34a; }
+.call-advice-bad .call-advice-note { color: var(--bad); }
+
+@media (max-width: 560px) {
+  .call-option-box {
+    width: 100%;
+  }
+  .call-advice-note {
+    max-width: none;
+  }
+}
+
+.yaku-status-note {
+  background: rgba(90, 180, 120, 0.12);
+  border-left: 3px solid var(--good);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.yaku-status-note.yaku-status-none {
+  background: rgba(220, 90, 90, 0.12);
+  border-left-color: var(--bad);
 }

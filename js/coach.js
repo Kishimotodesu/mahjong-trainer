@@ -6,19 +6,23 @@
 (function (root) {
   'use strict';
 
-  let Tiles, YakuCandidates, Safety, PushFold, Dora;
+  let Tiles, YakuCandidates, Safety, PushFold, Dora, Shanten, Melds;
   if (typeof module !== 'undefined' && module.exports) {
     Tiles = require('./tiles.js');
     YakuCandidates = require('./yakucandidates.js');
     Safety = require('./safety.js');
     PushFold = require('./pushfold.js');
     Dora = require('./dora.js');
+    Shanten = require('./shanten.js');
+    Melds = require('./melds.js');
   } else {
     Tiles = root.MJ.Tiles;
     YakuCandidates = root.MJ.YakuCandidates;
     Safety = root.MJ.Safety;
     PushFold = root.MJ.PushFold;
     Dora = root.MJ.Dora;
+    Shanten = root.MJ.Shanten;
+    Melds = root.MJ.Melds;
   }
 
   const GRADE_ORDER = { S: 4, A: 3, B: 2, C: 1, NA: 0 };
@@ -122,12 +126,87 @@
     return parts.join(' / ');
   }
 
+  /** 手牌+副露から、その面子が「役につながる形か」を初心者向けに大まかに判定する。 */
+  function hasYakuPotential(concealed, fuuro, windCtx) {
+    // タンヤオ: 手牌+副露のどこにも1・9・字牌が無い
+    let tanyaoOk = true;
+    for (let i = 0; i < Tiles.TILE_COUNT; i++) {
+      if (concealed[i] > 0 && Tiles.isTerminalOrHonor(i)) tanyaoOk = false;
+    }
+    fuuro.forEach((m) => m.tiles.forEach((t) => { if (Tiles.isTerminalOrHonor(t)) tanyaoOk = false; }));
+    if (tanyaoOk) return { ok: true, reason: 'タンヤオ(1・9・字牌を使わない役)が狙えます' };
+
+    // 役牌: 副露にすでに役牌の刻子がある、または手牌に役牌の対子・刻子がある
+    const isYakuhaiTile = (t) => {
+      if (t >= 31) return true; // 三元牌は常に役牌
+      if (t >= 27) return t === windCtx.seatWind || t === windCtx.roundWind; // 風牌は自風・場風のみ
+      return false;
+    };
+    const fuuroHasYakuhai = fuuro.some((m) => (m.type === 'pon' || m.type === 'minkan' || m.type === 'ankan') && isYakuhaiTile(m.tiles[0]));
+    if (fuuroHasYakuhai) return { ok: true, reason: '役牌の刻子がすでにあります' };
+    for (let t = 27; t < Tiles.TILE_COUNT; t++) {
+      if (concealed[t] >= 2 && isYakuhaiTile(t)) {
+        return { ok: true, reason: Tiles.shortLabel(t) + 'の対子があり、役牌になる見込みがあります' };
+      }
+    }
+    return { ok: false, reason: null };
+  }
+
+  /**
+   * ポン・チー・カンをすべきかどうかの参考ガイド。
+   * @param {object} params {handCounts, fuuro, action, tile, chiTiles, windCtx}
+   *   action: 'pon' | 'chi' | 'kan'
+   * @returns {{grade:string, gradeLabel:string, comment:string}}
+   *   grade: 'good'(鳴くのがおすすめ) | 'fair'(鳴いても悪くない) | 'caution'(役が心配) | 'bad'(見送り推奨)
+   */
+  function evaluateCallAdvice(params) {
+    const { handCounts, fuuro, action, tile, chiTiles, windCtx } = params;
+    const shantenBefore = Shanten.calcShanten(handCounts, fuuro.length).shanten;
+
+    let applied;
+    if (action === 'pon') applied = Melds.applyPon(handCounts, tile, 0);
+    else if (action === 'kan') applied = Melds.applyMinkan(handCounts, tile, 0);
+    else applied = Melds.applyChi(handCounts, chiTiles, tile, 0);
+
+    const shantenAfter = Shanten.calcShanten(applied.handCounts, fuuro.length + 1).shanten;
+    const newFuuro = fuuro.concat([applied.meld]);
+    const yakuCheck = hasYakuPotential(applied.handCounts, newFuuro, windCtx);
+
+    if (shantenAfter > shantenBefore) {
+      return { grade: 'bad', gradeLabel: '× 見送り推奨', comment: '鳴くとかえってシャンテン数が悪くなります。見送りましょう。' };
+    }
+    if (shantenAfter === shantenBefore) {
+      return {
+        grade: 'fair',
+        gradeLabel: '△ 急がなくてよい',
+        comment: 'シャンテン数は変わりません。急いで鳴く理由が無ければ見送っても構いません。',
+      };
+    }
+    // シャンテンが進む場合
+    if (yakuCheck.ok) {
+      return {
+        grade: 'good',
+        gradeLabel: '◎ 鳴くのがおすすめ',
+        comment: `シャンテン数が進みます。${yakuCheck.reason}ので、鳴いてもアガリにつながります。`,
+      };
+    }
+    return {
+      grade: 'caution',
+      gradeLabel: '△ 役が心配',
+      comment:
+        'シャンテン数は進みますが、鳴くと門前(メンゼン)でなくなるため、リーチ・平和(ピンフ)・門前清自摸和などの役が使えなくなります。' +
+        '現時点ではタンヤオや役牌などの役も見えていないため、このままアガれない(役なし)形になる可能性があります。',
+    };
+  }
+
   const Coach = {
     GRADE_SYMBOL,
     evaluateMultiAxis,
     gradeSymbol,
     buildOverallComment,
     evaluatePushFold: PushFold.evaluatePushFold,
+    evaluateCallAdvice,
+    hasYakuPotential,
   };
 
   if (typeof module !== 'undefined' && module.exports) {

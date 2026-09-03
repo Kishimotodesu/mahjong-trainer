@@ -29,6 +29,7 @@ const Coach = require(path.join(__dirname, '..', 'js', 'coach.js'));
 const Review = require(path.join(__dirname, '..', 'js', 'review.js'));
 const Problems = require(path.join(__dirname, '..', 'js', 'problems.js'));
 const Probability = require(path.join(__dirname, '..', 'js', 'probability.js'));
+const YakuReadings = require(path.join(__dirname, '..', 'js', 'yakureadings.js'));
 const Lessons = require(path.join(__dirname, '..', 'js', 'lessons.js'));
 const LessonEngine = require(path.join(__dirname, '..', 'js', 'lessonengine.js'));
 
@@ -1443,6 +1444,99 @@ test('buildOverallComment: 空でないコメントを生成する', () => {
   const comment = Coach.buildOverallComment(row, true);
   assert.ok(comment.length > 0);
   assert.ok(comment.includes('5萬'));
+});
+
+test('evaluateCallAdvice: 役牌の刻子が作れるポンは「鳴くのがおすすめ」になる', () => {
+  // 發の対子を含む手。發をポンすると役牌が確定する。
+  const hand = Tiles.toCounts([0, 1, 2, 9, 10, 11, 18, 19, 20, 26, 26, 32, 32]);
+  const advice = Coach.evaluateCallAdvice({
+    handCounts: hand,
+    fuuro: [],
+    action: 'pon',
+    tile: 32,
+    windCtx: { seatWind: 28, roundWind: 27 },
+  });
+  assert.strictEqual(advice.grade, 'good');
+  assert.ok(advice.comment.indexOf('役牌') !== -1);
+});
+
+test('evaluateCallAdvice: 客風のポンで役の当てが無い場合は「役が心配」になる', () => {
+  // 西(客風)の対子。場風=東、自風=南なので西は役牌にならない。タンヤオも老頭牌を含むため崩れる。
+  const hand = Tiles.toCounts([0, 1, 2, 9, 10, 11, 18, 19, 20, 26, 26, 29, 29]);
+  const advice = Coach.evaluateCallAdvice({
+    handCounts: hand,
+    fuuro: [],
+    action: 'pon',
+    tile: 29,
+    windCtx: { seatWind: 28, roundWind: 27 },
+  });
+  assert.strictEqual(advice.grade, 'caution');
+  assert.ok(advice.comment.indexOf('役') !== -1);
+});
+
+test('evaluateCallAdvice: タンヤオが崩れないポンは役ありと判定される', () => {
+  // 2〜8の数牌だけの手(老頭牌・字牌なし)。3のポンをしてもタンヤオが残る。
+  const hand = Tiles.toCounts([2, 2, 3, 4, 5, 6, 11, 12, 13, 19, 20, 21, 21]);
+  const advice = Coach.evaluateCallAdvice({
+    handCounts: hand,
+    fuuro: [],
+    action: 'pon',
+    tile: 2,
+    windCtx: { seatWind: 28, roundWind: 27 },
+  });
+  assert.strictEqual(advice.grade, 'good');
+  assert.ok(advice.comment.indexOf('タンヤオ') !== -1);
+});
+
+test('evaluateCallAdvice: シャンテンが進まない鳴きは「急がなくてよい」になる', () => {
+  // すでに完成している面子を含む手にチーをしても、シャンテン数が変わらないケースを作る
+  const hand = Tiles.toCounts([0, 1, 2, 3, 4, 5, 9, 9, 9, 18, 18, 18, 26]);
+  const before = Shanten.calcShanten(hand, 0).shanten;
+  // 6萬7萬8萬(チー用に3,4,5は既に使用中なので7,8を絡めた別形)ではなく、
+  // 直接シャンテンが変わらない組み合わせを検証するため、資料上の値のみ比較する
+  const advice = Coach.evaluateCallAdvice({
+    handCounts: hand,
+    fuuro: [],
+    action: 'chi',
+    tile: 6,
+    chiTiles: [4, 5, 6],
+    windCtx: { seatWind: 28, roundWind: 27 },
+  });
+  assert.ok(['fair', 'bad', 'good'].includes(advice.grade));
+  // シャンテンが変わらない場合は必ず"fair"になることをシャンテン計算そのもので裏付ける
+  const Melds = require(path.join(__dirname, '..', 'js', 'melds.js'));
+  const applied = Melds.applyChi(hand, [4, 5, 6], 6, 0);
+  const after = Shanten.calcShanten(applied.handCounts, 1).shanten;
+  if (after === before) assert.strictEqual(advice.grade, 'fair');
+  if (after > before) assert.strictEqual(advice.grade, 'bad');
+  if (after < before) assert.ok(advice.grade === 'good' || advice.grade === 'caution');
+});
+
+test('hasYakuPotential: タンヤオ・役牌のいずれも無ければfalseになる', () => {
+  const noYaku = Tiles.toCounts([0, 1, 2, 9, 10, 11, 18, 19, 20, 26, 27, 29, 30]);
+  const result = Coach.hasYakuPotential(noYaku, [], { seatWind: 28, roundWind: 27 });
+  assert.strictEqual(result.ok, false);
+});
+
+console.log('== yakureadings.js: 役名の読み方 ==');
+
+test('displayNameWithReading: 読みにくい役名にはカタカナの読みを付ける', () => {
+  assert.strictEqual(YakuReadings.displayNameWithReading('混全帯幺九', 'chanta'), '混全帯幺九(チャンタ)');
+  assert.strictEqual(YakuReadings.displayNameWithReading('対々和', 'toitoi'), '対々和(トイトイ)');
+  assert.strictEqual(YakuReadings.displayNameWithReading('混老頭', 'honroutou'), '混老頭(ホンロートー)');
+  assert.strictEqual(YakuReadings.displayNameWithReading('三色同順', 'sanshoku_doujun_0'), '三色同順(サンショクドウジュン)');
+});
+
+test('displayNameWithReading: すでに読みや補足がある名前・役牌はそのまま返す(冗長にしない)', () => {
+  assert.strictEqual(YakuReadings.displayNameWithReading('平和(ピンフ)', 'pinfu'), '平和(ピンフ)');
+  assert.strictEqual(YakuReadings.displayNameWithReading('役牌:發', 'yakuhai_32'), '役牌:發');
+  assert.strictEqual(YakuReadings.displayNameWithReading('場風:東', 'yakuhai_round'), '場風:東');
+  assert.strictEqual(YakuReadings.displayNameWithReading('タンヤオ', 'tanyao'), 'タンヤオ');
+});
+
+test('displayNameWithReading: 未知のkeyや名前が無い場合でも例外を投げない', () => {
+  assert.strictEqual(YakuReadings.displayNameWithReading('未知の役', 'unknown_key_xyz'), '未知の役');
+  assert.strictEqual(YakuReadings.displayNameWithReading(null, 'tanyao'), null);
 });
 
 console.log('== round.js: 局の進行 ==');

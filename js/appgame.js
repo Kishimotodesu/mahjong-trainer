@@ -15,6 +15,7 @@
   const Scoring = window.MJ.Scoring;
   const Safety = window.MJ.Safety;
   const Coach = window.MJ.Coach;
+  const YakuCandidates = window.MJ.YakuCandidates;
   const Kifu = window.MJ.Kifu;
   const CPU = window.MJ.CPU;
   const UI = window.MJ.UI;
@@ -367,15 +368,41 @@
     container.hidden = false;
     container.innerHTML = '';
     const opt = round.callOptions[HUMAN_SEAT];
+    const p = match.players[HUMAN_SEAT];
+    const tile = round.pendingDiscard.tile;
+    const showAdvice = gameTab.coachMode !== 'off';
 
     if (opt.canRon) container.appendChild(makeButton('ロン', () => handleCallDecision({ action: 'ron' }), true));
-    if (opt.canKan) container.appendChild(makeButton('カン', () => handleCallDecision({ action: 'kan' }), false));
-    if (opt.canPon) container.appendChild(makeButton('ポン', () => handleCallDecision({ action: 'pon' }), false));
+
+    if (opt.canKan) {
+      const advice = showAdvice ? Coach.evaluateCallAdvice({ handCounts: p.handCounts, fuuro: p.fuuro, action: 'kan', tile, windCtx: windCtx0(match, p) }) : null;
+      container.appendChild(makeCallButton('カン(' + Tiles.shortLabel(tile) + ')', () => handleCallDecision({ action: 'kan' }), advice));
+    }
+    if (opt.canPon) {
+      const advice = showAdvice ? Coach.evaluateCallAdvice({ handCounts: p.handCounts, fuuro: p.fuuro, action: 'pon', tile, windCtx: windCtx0(match, p) }) : null;
+      container.appendChild(makeCallButton('ポン(' + Tiles.shortLabel(tile) + ')', () => handleCallDecision({ action: 'pon' }), advice));
+    }
     opt.chiOptions.forEach((chiTiles) => {
       const label = 'チー(' + chiTiles.map((t) => Tiles.shortLabel(t)).join('') + ')';
-      container.appendChild(makeButton(label, () => handleCallDecision({ action: 'chi', chiTiles }), false));
+      const advice = showAdvice
+        ? Coach.evaluateCallAdvice({ handCounts: p.handCounts, fuuro: p.fuuro, action: 'chi', tile, chiTiles, windCtx: windCtx0(match, p) })
+        : null;
+      container.appendChild(makeCallButton(label, () => handleCallDecision({ action: 'chi', chiTiles }), advice));
     });
-    container.appendChild(makeButton('スルー', () => handleCallDecision({ action: 'pass' }), false));
+    container.appendChild(makeButton('スルー(見送る)', () => handleCallDecision({ action: 'pass' }), false));
+  }
+
+  /** 鳴きボタン+初心者向けの「鳴くべきか」ガイド(コーチON時のみ)をまとめて作る */
+  function makeCallButton(label, onClick, advice) {
+    if (!advice) return makeButton(label, onClick, false);
+    const wrap = document.createElement('div');
+    wrap.className = 'call-option-box call-advice-' + advice.grade;
+    wrap.appendChild(makeButton(label, onClick, advice.grade === 'good'));
+    const note = document.createElement('div');
+    note.className = 'call-advice-note';
+    note.textContent = advice.gradeLabel + ': ' + advice.comment;
+    wrap.appendChild(note);
+    return wrap;
   }
 
   function makeButton(label, onClick, primary) {
@@ -390,6 +417,29 @@
 
   function riichiOpponentsOf(match) {
     return match.players.filter((p) => p.seat !== HUMAN_SEAT && p.riichi);
+  }
+
+  /**
+   * 「今のところ役が見えているか」を初心者向けに1〜2行で表示する。
+   * 完成した役ではなく「狙えそうな役」の参考情報であることを明記する
+   * (yakucandidates.jsは正式な役判定=yaku.js/scoring.jsとは独立したヒューリスティック)。
+   */
+  function renderYakuStatusNote(body, counts14, windCtx, shanten) {
+    if (!YakuCandidates) return;
+    const candidates = YakuCandidates.detectYakuCandidates(counts14, windCtx);
+    const note = document.createElement('div');
+    note.className = 'yaku-status-note';
+    if (candidates.length === 0) {
+      note.classList.add('yaku-status-none');
+      note.textContent =
+        shanten <= 1
+          ? 'まだ役が見えていません。このまま完成すると「役なし」でアガれない可能性があります。リーチをかければ役を確保できます。'
+          : 'まだ役が見えていません(先の話なので、今から慌てる必要はありません)。';
+    } else {
+      const names = candidates.slice(0, 3).map((c) => window.MJ.YakuReadings ? window.MJ.YakuReadings.displayNameWithReading(c.name, c.key) : c.name);
+      note.textContent = '現在狙えそうな役: ' + names.join('、') + ' (まだ確定ではありません)';
+    }
+    body.appendChild(note);
   }
 
   function windCtx0(match, p) {
@@ -507,6 +557,9 @@
           : '現時点で明確に安全と言える牌はありません。';
       body.appendChild(safeLine);
     }
+
+    // 役の状況: 現時点で見えている役の候補と、まだ何も無い場合の注意を表示する
+    renderYakuStatusNote(body, counts14, windCtx0(match, p), analysis.currentShanten);
 
     if (gameTab.coachMode === 'hint') return;
 

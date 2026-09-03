@@ -10,6 +10,7 @@
   const Dictionary = root.MJ.Dictionary;
   const HandInfo = root.MJ.HandInfo;
   const HandBuilder = root.MJ.HandBuilder;
+  const YakuReadings = root.MJ.YakuReadings;
 
   let tooltipEl = null;
 
@@ -636,7 +637,7 @@
       const details = document.createElement('details');
       const summary = document.createElement('summary');
       const nameSpan = document.createElement('span');
-      nameSpan.textContent = y.name;
+      nameSpan.textContent = YakuReadings ? YakuReadings.displayNameWithReading(y.name, y.key) : y.name;
       const hanSpan = document.createElement('span');
       hanSpan.className = 'yaku-han';
       hanSpan.textContent = y.isYakuman ? `役満 ×${y.multiple}` : `${y.han}翻`;
@@ -722,7 +723,7 @@
       item.className = 'yaku-candidate-item';
       const name = document.createElement('span');
       name.className = 'cand-name';
-      name.textContent = c.name;
+      name.textContent = YakuReadings ? YakuReadings.displayNameWithReading(c.name, c.key) : c.name;
       const note = document.createElement('span');
       note.textContent = c.note;
       item.appendChild(name);
@@ -784,20 +785,24 @@
    * @param {string} label 表示ラベル(例: "自分" "下家")
    * @param {Array<{tile:number, calledBy?:number|null, isRiichiDeclare?:boolean, riichi?:boolean}>} discards
    */
-  function renderDiscardPileBox(container, label, discards) {
+  function renderDiscardPileBox(container, label, discards, options) {
+    options = options || {};
     container.innerHTML = '';
-    container.className = 'discard-pile-box';
+    container.className = 'discard-pile-box' + (options.isTurn ? ' is-turn' : '') + (options.riichi ? ' is-riichi' : '');
     const labelEl = document.createElement('div');
     labelEl.className = 'discard-pile-label';
-    labelEl.textContent = label;
+    labelEl.textContent = label + (options.isTurn ? ' (手番)' : '');
     container.appendChild(labelEl);
 
     const tilesRow = document.createElement('div');
     tilesRow.className = 'discard-pile-tiles';
-    discards.forEach((d) => {
+    discards.forEach((d, i) => {
       const isCalled = d.calledBy !== null && d.calledBy !== undefined;
       const isRiichiTile = !!(d.isRiichiDeclare || d.riichi);
-      tilesRow.appendChild(createMiniTile(d.tile, { called: isCalled, isRiichiTile }));
+      const isLatest = i === discards.length - 1;
+      const mini = createMiniTile(d.tile, { called: isCalled, isRiichiTile });
+      if (isLatest) mini.classList.add('mini-tile-latest');
+      tilesRow.appendChild(mini);
     });
     container.appendChild(tilesRow);
   }
@@ -806,7 +811,8 @@
     container.innerHTML = '';
     playersInfo.forEach((info) => {
       const box = document.createElement('div');
-      renderDiscardPileBox(box, info.relativeLabel + '(' + info.name + ')', info.discards);
+      const label = info.relativeLabel + '・' + info.name + (info.riichi ? '(リーチ中)' : '');
+      renderDiscardPileBox(box, label, info.discards, { isTurn: info.isTurn, riichi: info.riichi });
       container.appendChild(box);
     });
   }
