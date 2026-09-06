@@ -15,6 +15,14 @@
 (function (root) {
   'use strict';
 
+  // 第二弾以降のコースは別ファイルに分けて、ここで1つの問題集にまとめる
+  let QuizDataDefense;
+  if (typeof module !== 'undefined' && module.exports) {
+    QuizDataDefense = require('./quizdata-defense.js');
+  } else {
+    QuizDataDefense = root.MJ.QuizDataDefense;
+  }
+
   // ---- 簡易表記 → 牌インデックス配列 ----
   function parse(str) {
     const tiles = [];
@@ -78,6 +86,7 @@
       target: '現物の考え方・誰に対して安全かの区別・赤5の扱い',
       icon: '現',
     },
+    QuizDataDefense.DEFENSE_COURSE,
   ];
 
   // ==================================================
@@ -1464,7 +1473,13 @@
     }),
   ];
 
-  const QUESTIONS = [].concat(YAKU_QUESTIONS, WAIT_QUESTIONS, FURITEN_QUESTIONS, GENBUTSU_QUESTIONS);
+  const QUESTIONS = [].concat(
+    YAKU_QUESTIONS,
+    WAIT_QUESTIONS,
+    FURITEN_QUESTIONS,
+    GENBUTSU_QUESTIONS,
+    QuizDataDefense.DEFENSE_QUESTIONS
+  );
 
   function questionsForCourse(courseId) {
     return QUESTIONS.filter((q) => q.course === courseId);

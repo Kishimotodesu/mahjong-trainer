@@ -13,7 +13,8 @@
   const VERSION = 1;
 
   function emptyCourse() {
-    return { attempts: 0, correct: 0, answered: 0, lastAt: null, wrongQuestionIds: [] };
+    // byDifficulty はV1.8で追加。古い保存データには存在しないため、読み込み時に必ず補う。
+    return { attempts: 0, correct: 0, answered: 0, lastAt: null, wrongQuestionIds: [], byDifficulty: {} };
   }
 
   function emptyStore() {
@@ -56,6 +57,7 @@
     if (!c) return emptyCourse();
     return Object.assign(emptyCourse(), c, {
       wrongQuestionIds: Array.isArray(c.wrongQuestionIds) ? c.wrongQuestionIds : [],
+      byDifficulty: c.byDifficulty && typeof c.byDifficulty === 'object' ? c.byDifficulty : {},
     });
   }
 
@@ -68,7 +70,7 @@
   /**
    * 1回の挑戦結果を記録する。
    * @param {string} courseId
-   * @param {Array<{questionId:string, correct:boolean, tags:string[]}>} results
+   * @param {Array<{questionId:string, correct:boolean, tags:string[], difficulty:?string}>} results
    * @param {object} [store]
    */
   function recordAttempt(courseId, results, store) {
@@ -76,6 +78,7 @@
     if (!s.courses[courseId]) s.courses[courseId] = emptyCourse();
     const c = s.courses[courseId];
     if (!Array.isArray(c.wrongQuestionIds)) c.wrongQuestionIds = [];
+    if (!c.byDifficulty || typeof c.byDifficulty !== 'object') c.byDifficulty = {};
 
     c.attempts += 1;
     c.answered += results.length;
@@ -91,6 +94,11 @@
         if (r.correct) s.tags[tag].correct += 1;
         else s.tags[tag].wrong += 1;
       });
+      if (r.difficulty) {
+        if (!c.byDifficulty[r.difficulty]) c.byDifficulty[r.difficulty] = { correct: 0, answered: 0 };
+        c.byDifficulty[r.difficulty].answered += 1;
+        if (r.correct) c.byDifficulty[r.difficulty].correct += 1;
+      }
     });
     c.wrongQuestionIds = [...wrongSet];
 
@@ -109,6 +117,21 @@
     if (!existingIds) return stats.wrongQuestionIds.slice();
     const exists = new Set(existingIds);
     return stats.wrongQuestionIds.filter((id) => exists.has(id));
+  }
+
+  /** 難易度別の成績(未挑戦の難易度は 0/0 で返す) */
+  function difficultyStats(courseId, difficultyIds, store) {
+    const stats = courseStats(courseId, store);
+    const out = {};
+    (difficultyIds || Object.keys(stats.byDifficulty)).forEach((id) => {
+      const d = stats.byDifficulty[id] || { correct: 0, answered: 0 };
+      out[id] = {
+        correct: d.correct || 0,
+        answered: d.answered || 0,
+        rate: d.answered ? Math.round((d.correct / d.answered) * 100) : null,
+      };
+    });
+    return out;
   }
 
   function tagStats(store) {
@@ -144,6 +167,7 @@
     courseStats,
     accuracy,
     recordAttempt,
+    difficultyStats,
     wrongQuestionIds,
     tagStats,
     resetAll,

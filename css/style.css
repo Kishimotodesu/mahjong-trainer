@@ -2349,3 +2349,231 @@ body {
   }
 }
 
+/* ==================================================
+   守備判断クイズ(V1.8)
+   ================================================== */
+
+.quiz-course-note {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: var(--fair);
+  line-height: 1.5;
+}
+
+.quiz-difficulty-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.quiz-difficulty-row {
+  background: var(--bg-panel-light);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.quiz-difficulty-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.quiz-recommend-badge {
+  font-size: 0.68rem;
+  font-weight: bold;
+  color: #0c2a20;
+  background: var(--accent-strong);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.quiz-difficulty-count,
+.quiz-difficulty-score {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.quiz-difficulty-desc {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.quiz-difficulty-row button {
+  width: 100%;
+  min-height: 40px;
+}
+
+/* ---- 並べ替え問題 ---- */
+
+.quiz-order-badge {
+  font-size: 0.72rem;
+  text-align: center;
+  color: var(--text-dim);
+  margin-top: 3px;
+}
+
+.quiz-order-badge-on {
+  color: var(--accent-strong);
+  font-weight: bold;
+}
+
+.quiz-order-hint {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.quiz-order-clear {
+  margin-bottom: 10px;
+  min-height: 40px;
+}
+
+/* ---- 候補牌ごとの根拠 ---- */
+
+.quiz-defense-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quiz-defense-card {
+  background: var(--bg-panel);
+  border-radius: 8px;
+  border-left: 4px solid var(--text-dim);
+  padding: 8px 10px;
+}
+
+.quiz-defense-card.rank-S { border-left-color: var(--good); }
+.quiz-defense-card.rank-A { border-left-color: var(--ok); }
+.quiz-defense-card.rank-B { border-left-color: #6fb3d9; }
+.quiz-defense-card.rank-C { border-left-color: var(--fair); }
+.quiz-defense-card.rank-D { border-left-color: #e08a3c; }
+.quiz-defense-card.rank-E { border-left-color: var(--bad); }
+
+.quiz-defense-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.quiz-defense-rankbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quiz-rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1rem;
+  color: #0c2a20;
+  background: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.quiz-rank-badge.rank-S { background: var(--good); color: #fff; }
+.quiz-rank-badge.rank-A { background: var(--ok); color: #10281a; }
+.quiz-rank-badge.rank-B { background: #6fb3d9; }
+.quiz-rank-badge.rank-C { background: var(--fair); }
+.quiz-rank-badge.rank-D { background: #e08a3c; }
+.quiz-rank-badge.rank-E { background: var(--bad); color: #fff; }
+
+.quiz-rank-label {
+  font-size: 0.86rem;
+}
+
+.quiz-defense-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.quiz-defense-fact {
+  font-size: 0.74rem;
+  background: var(--bg-panel-light);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.quiz-defense-fact-label {
+  color: var(--text-dim);
+  margin-right: 4px;
+}
+
+.quiz-factor-list {
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.quiz-factor-safe {
+  background: rgba(58, 166, 92, 0.16);
+  border-left: 3px solid var(--good);
+}
+
+.quiz-factor-danger {
+  background: rgba(224, 138, 60, 0.16);
+  border-left: 3px solid #e08a3c;
+}
+
+.quiz-factor-title {
+  font-weight: bold;
+  margin-bottom: 3px;
+}
+
+.quiz-factor-safe .quiz-factor-title,
+.quiz-factor-safe .quiz-factor-icon {
+  color: #8fe3aa;
+}
+
+.quiz-factor-danger .quiz-factor-title,
+.quiz-factor-danger .quiz-factor-icon {
+  color: #f5c07a;
+}
+
+.quiz-factor-item {
+  display: flex;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.quiz-factor-icon {
+  flex: 0 0 auto;
+  font-weight: bold;
+}
+
+.quiz-defense-reason {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+@media (max-width: 560px) {
+  .quiz-defense-head {
+    gap: 8px;
+  }
+
+  .quiz-rank-label {
+    font-size: 0.8rem;
+  }
+
+  .quiz-factor-list {
+    font-size: 0.8rem;
+  }
+}

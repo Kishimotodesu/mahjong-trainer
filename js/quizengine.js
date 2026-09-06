@@ -14,7 +14,7 @@
 (function (root) {
   'use strict';
 
-  let Tiles, Shanten, HandInfo, Decomposition, Melds, Yaku, Scoring, Furiten, Safety, YakuReadings;
+  let Tiles, Shanten, HandInfo, Decomposition, Melds, Yaku, Scoring, Furiten, Safety, YakuReadings, Defense;
   if (typeof module !== 'undefined' && module.exports) {
     Tiles = require('./tiles.js');
     Shanten = require('./shanten.js');
@@ -26,6 +26,7 @@
     Furiten = require('./furiten.js');
     Safety = require('./safety.js');
     YakuReadings = require('./yakureadings.js');
+    Defense = require('./defense.js');
   } else {
     Tiles = root.MJ.Tiles;
     Shanten = root.MJ.Shanten;
@@ -37,6 +38,7 @@
     Furiten = root.MJ.Furiten;
     Safety = root.MJ.Safety;
     YakuReadings = root.MJ.YakuReadings;
+    Defense = root.MJ.Defense;
   }
 
   // ==================================================
@@ -573,6 +575,37 @@
   }
 
   // ==================================================
+  // 守備判断(V1.8)
+  // ==================================================
+
+  /**
+   * 守備判断クイズの盤面を defense.js に渡して、候補牌ごとの安全度を評価する。
+   * 「どの牌が安全か」の判断そのものは defense.js が持ち、ここでは
+   * クイズの盤面(自分の手牌・全員の河・ドラ表示牌)から見えている牌を組み立てるだけ。
+   * @param {object} board normalizeBoard 済みの盤面
+   * @param {Array<number|{tile:number,aka:boolean}>} [candidates] 省略時は board.candidates
+   */
+  function analyzeDefense(board, candidates) {
+    const ctx = Defense.buildContext({
+      players: board.players,
+      targetSeat: board.targetSeat,
+      visibleCounts: visibleCounts(board, false),
+      doraIndicators: board.doraIndicators,
+      roundWind: board.roundWind,
+      seatWind: board.seatWind,
+    });
+    const result = Defense.evaluateCandidates(candidates || board.candidates || [], ctx);
+    result.context = ctx;
+    result.targetLabel = ctx.targetLabel;
+    return result;
+  }
+
+  /** 守備判断クイズの候補牌(問題データの candidates)を取り出す */
+  function defenseCandidates(question) {
+    return (question && question.candidates) || [];
+  }
+
+  // ==================================================
   // resolver: 問題の正解を本番ロジックから計算する
   // ==================================================
 
@@ -618,6 +651,34 @@
       const result = analyzeGenbutsu(board, cands);
       return new Set(result.candidates.filter((c) => c.isGenbutsu).map((c) => c.tile));
     },
+
+    // ---- 守備判断クイズ(V1.8) ----
+    /** 最も安全と考えられる牌の集合(同評価が複数ならすべて) */
+    safestTiles: (board, args) => new Set(analyzeDefense(board, args && args.candidates).safestTiles),
+    /** 最も警戒したい牌の集合(同評価が複数ならすべて) */
+    mostDangerousTiles: (board, args) => new Set(analyzeDefense(board, args && args.candidates).mostDangerousTiles),
+    /** 指定した牌の安全度ランク(S〜E) */
+    safetyRank: (board, args) => {
+      const result = analyzeDefense(board, args && args.candidates);
+      return result.rankOf[args.tile];
+    },
+    /** 指定した牌の初心者向け4分類(現物/比較的安全/判断が必要/危険寄り) */
+    safetyCategory: (board, args) => {
+      const result = analyzeDefense(board, args && args.candidates);
+      return Defense.categoryOf(result.rankOf[args.tile]);
+    },
+    /**
+     * 安全な順の並べ替え用。牌 → 同順位グループ番号(0が最も安全)を返す。
+     * 採点は gradeQuestion 側で「グループ番号が増える順に並んでいるか」を見る。
+     */
+    safetyOrder: (board, args) => analyzeDefense(board, args && args.candidates).groupIndexOf,
+    /** 指定した牌に当てはまる「安全と考えられる理由」のキー集合 */
+    safetyReasonKeys: (board, args) => {
+      const result = analyzeDefense(board, args && args.candidates);
+      const target = result.candidates.find((c) => c.tile === args.tile);
+      if (!target) throw new Error('候補にない牌です: ' + args.tile);
+      return new Set(target.safeFactors.map((f) => f.key));
+    },
   };
 
   /** resolver の結果と選択肢の value を突き合わせる */
@@ -633,13 +694,66 @@
    * @param {string[]} selectedIds ユーザーが選んだ選択肢ID
    * @returns {{correct:boolean, correctIds:string[], selectedIds:string[], resolved:*}}
    */
+  /** 候補牌を必要とする resolver には、問題データの candidates を自動で渡す */
+  const CANDIDATE_RESOLVERS = [
+    'genbutsuTiles',
+    'safestTiles',
+    'mostDangerousTiles',
+    'safetyRank',
+    'safetyCategory',
+    'safetyOrder',
+    'safetyReasonKeys',
+  ];
+
+  /**
+   * 並べ替え問題(mode:'order')の採点。
+   * resolved は「牌 → 同順位グループ番号(0が最も安全)」。
+   * グループ番号が増える順に並んでいれば正解とする。
+   * 同順位の牌は入れ替えても正解になる(材料が同程度なら順位を強制しないため)。
+   */
+  function gradeOrder(question, selectedIds, resolved) {
+    const choiceById = {};
+    question.choices.forEach((c) => (choiceById[c.id] = c));
+    const selected = (selectedIds || []).slice();
+
+    // 全部の候補を並べ切っていなければ不正解(未回答扱い)
+    const complete = selected.length === question.choices.length;
+    let ordered = complete;
+    if (complete) {
+      for (let i = 1; i < selected.length; i++) {
+        const prev = resolved[choiceById[selected[i - 1]].value];
+        const cur = resolved[choiceById[selected[i]].value];
+        if (prev === undefined || cur === undefined || prev > cur) {
+          ordered = false;
+          break;
+        }
+      }
+    }
+
+    // 表示用の模範解答(同順位はデータ上の並び順のまま)
+    const canonical = question.choices
+      .slice()
+      .sort((a, b) => resolved[a.value] - resolved[b.value])
+      .map((c) => c.id);
+
+    return { correct: ordered, correctIds: canonical };
+  }
+
   function gradeQuestion(question, selectedIds) {
     const board = normalizeBoard(question.board);
     const resolver = RESOLVERS[question.resolver];
     if (!resolver) throw new Error('未知のresolver: ' + question.resolver);
     const args = Object.assign({}, question.resolverArgs || {});
-    if (question.resolver === 'genbutsuTiles' && !args.candidates) args.candidates = question.candidates || [];
+    if (CANDIDATE_RESOLVERS.indexOf(question.resolver) !== -1 && !args.candidates) {
+      args.candidates = question.candidates || [];
+    }
     const resolved = resolver(board, args);
+
+    if (question.mode === 'order') {
+      const graded = gradeOrder(question, selectedIds, resolved);
+      // 並べ替えは順番に意味があるため、selectedIds はソートせずそのまま保持する
+      return { correct: graded.correct, correctIds: graded.correctIds, selectedIds: (selectedIds || []).slice(), resolved };
+    }
 
     const correctIds = question.choices.filter((c) => valueMatches(resolved, c.value)).map((c) => c.id);
     const selected = (selectedIds || []).slice().sort();
@@ -668,6 +782,8 @@
     isYakuhaiTile,
     analyzeFuriten,
     analyzeGenbutsu,
+    analyzeDefense,
+    defenseCandidates,
     RESOLVERS,
     gradeQuestion,
   };
