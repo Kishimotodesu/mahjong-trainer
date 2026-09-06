@@ -432,7 +432,7 @@
       if (num >= 3 && num <= 7) {
         score += WEIGHTS.middleTile;
         dangerFactors.push(
-          factor('middle', '中張牌(3〜7)', '真ん中の数牌は両面・嵌張・辺張など待ちの種類が多いため、無筋(ムスジ)なら警戒される牌です。')
+          factor('middle', '中張牌(3〜7)', '真ん中の数牌は待ちの種類が多く、無筋(ムスジ)なら警戒されます。')
         );
       }
     }
@@ -483,13 +483,19 @@
     });
   }
 
+  /**
+   * どの牌にも同じ文言が付く「一般的な注意」。候補ごとに繰り返すと解説が長くなるため、
+   * 表示側(appquiz.js)はこれらをまとめて1か所に出す。判定結果としては保持しておく。
+   */
+  const GENERIC_DANGER_KEYS = ['other-waits', 'honor-waits', 'other-player'];
+
   function buildReason(label, rank, safeFactors, dangerFactors) {
     const safe = safeFactors.map((f) => f.label).join('・');
-    const danger = dangerFactors.filter((f) => f.key !== 'other-player').map((f) => f.label).join('・');
+    const danger = dangerFactors.filter((f) => GENERIC_DANGER_KEYS.indexOf(f.key) === -1).map((f) => f.label).join('・');
     const head = label + 'は' + RANKS[rank].label + '。';
     const safeText = safe ? '安全材料: ' + safe + '。' : '安全材料はありません。';
     const dangerText = danger ? '危険材料: ' + danger + '。' : '';
-    return head + safeText + dangerText + 'ランクSの牌以外は「当たりにくい」というだけで、安全が確定しているわけではありません。';
+    return head + safeText + dangerText;
   }
 
   function finish(tile, label, rank, score, data) {
@@ -603,6 +609,7 @@
   const Defense = {
     RANKS,
     RANK_ORDER,
+    GENERIC_DANGER_KEYS,
     WEIGHTS,
     SCORE_TO_RANK,
     CATEGORY,
