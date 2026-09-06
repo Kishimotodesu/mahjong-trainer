@@ -192,6 +192,19 @@
       const labelEl = el('div', 'discard-pile-label', label);
       if (p.riichi) labelEl.classList.add('quiz-river-riichi');
       pileBox.appendChild(labelEl);
+      // 相手の副露(鳴いた面子)は全員に見えている情報なので、河と一緒に表示する
+      if (p.melds && p.melds.length > 0) {
+        const meldRow = el('div', 'quiz-opponent-melds');
+        meldRow.appendChild(el('span', 'quiz-opponent-melds-label', '副露(フーロ)'));
+        p.melds.forEach((meld) => {
+          const group = el('span', 'quiz-fuuro-group');
+          meld.tiles.forEach((tileIdx) => group.appendChild(UI.createMiniTile(tileIdx, { called: true })));
+          const typeLabel = { pon: 'ポン', chi: 'チー', minkan: '明槓', ankan: '暗槓' }[meld.type] || meld.type;
+          group.appendChild(el('span', 'quiz-fuuro-type', typeLabel));
+          meldRow.appendChild(group);
+        });
+        pileBox.appendChild(meldRow);
+      }
       const tilesRow = el('div', 'discard-pile-tiles');
       p.discards.forEach((d, i) => {
         const mini = UI.createMiniTile(d.tile, { isRiichiTile: p.riichiIndex === i });
@@ -223,16 +236,42 @@
       if (board.furitenTemporary) add('この巡で見逃しあり(同巡内フリテン)', 'quiz-chip-warn');
       if (board.furitenRiichi) add('リーチ後に見逃しあり', 'quiz-chip-warn');
     }
+    if (question.course === 'reading') {
+      add('場風(バカゼ): ' + (WIND_NAMES[board.roundWind] || '-'));
+      add('自風(ジカゼ): ' + (WIND_NAMES[board.seatWind] || '-'));
+      if (board.turn) add(board.turn + '巡目');
+      const target = board.players.find((p) => p.seat === board.targetSeat);
+      if (target) add('読む相手: ' + target.label + (target.riichi ? '(立直(リーチ)中)' : ''), 'quiz-chip-strong');
+    }
     if (board.doraIndicators && board.doraIndicators.length > 0) {
       add('ドラ表示牌: ' + board.doraIndicators.map((t) => Tiles.shortLabel(t)).join('・'));
     }
     if (chips.childNodes.length > 0) parent.appendChild(chips);
   }
 
+  /** 相手の手牌は回答前には伏せておく(裏向きの牌だけを見せる) */
+  function renderConcealedOpponentHand(parent, question, board) {
+    const target = board.players.find((p) => p.seat === board.targetSeat);
+    const meldCount = target && target.melds ? target.melds.length : 0;
+    const block = el('div', 'quiz-board-block');
+    block.appendChild(el('div', 'quiz-board-label', (target ? target.label : '相手') + 'の手牌(伏せています)'));
+    const row = el('div', 'quiz-back-row');
+    for (let i = 0; i < 13 - meldCount * 3; i++) row.appendChild(el('div', 'quiz-back-tile', '?'));
+    block.appendChild(row);
+    block.appendChild(
+      el('div', 'quiz-detail-sub', '相手の手牌は回答後に公開されます。ここまでの情報(河・鳴き・ドラ)だけで考えてください。')
+    );
+    parent.appendChild(block);
+  }
+
   function renderBoard(parent, question, board, highlightSet) {
     const box = el('div', 'quiz-board');
 
     renderSituation(box, question, board);
+
+    if (question.course === 'reading' && board.describe) {
+      box.appendChild(el('p', 'quiz-scene-describe', board.describe));
+    }
 
     const handBlock = el('div', 'quiz-board-block');
     const handLabel = question.course === 'wait' ? '手牌(13枚)' : '手牌';
@@ -252,6 +291,7 @@
     }
 
     renderFuuro(box, board.fuuro);
+    if (question.course === 'reading') renderConcealedOpponentHand(box, question, board);
     renderRivers(box, board, highlightSet);
 
     parent.appendChild(box);
@@ -267,7 +307,12 @@
 
   function toggleChoice(question, choiceId) {
     if (state.graded) return;
-    if (question.mode === 'order') {
+    if (question.mode === 'reading') {
+      // 待ち読みは「最大N種類」まで。上限を超えるタップは無視する。
+      const i = state.selected.indexOf(choiceId);
+      if (i !== -1) state.selected.splice(i, 1);
+      else if (state.selected.length < (question.selectCount || 3)) state.selected.push(choiceId);
+    } else if (question.mode === 'order') {
       // 並べ替えはタップした順番がそのまま回答になる。もう一度タップすると取り消す。
       const i = state.selected.indexOf(choiceId);
       if (i === -1) state.selected.push(choiceId);
@@ -629,29 +674,230 @@
     parent.appendChild(detail);
   }
 
+  /**
+   * 待ち読みの解説。指定された順番で表示する。
+   * 1.選んだ候補 2.妥当な候補 3.推理評価 4.相手の手牌公開 5.実際の待ち 6.待ちの形
+   * 7.的中したか 8.河から読み取れたこと 9.断定できなかったこと (10.解説は共通処理)
+   * この関数は回答後にだけ呼ばれる。回答前に隠し手牌を描画してはいけない。
+   */
+  function renderReadingDetail(parent, question, board) {
+    const graded = state.graded;
+    const detail = el('div', 'quiz-detail quiz-reading-detail');
+
+    const tileRow = (tiles, extraClass) => {
+      const row = el('div', 'quiz-tile-row quiz-reading-tiles');
+      if (!tiles || tiles.length === 0) {
+        row.appendChild(el('span', 'quiz-detail-sub', 'なし'));
+        return row;
+      }
+      tiles.forEach((tileIdx) => {
+        const btn = UI.createTileButton(tileIdx, { disabled: true });
+        btn.classList.add('quiz-static-tile');
+        if (extraClass) btn.classList.add(extraClass);
+        row.appendChild(btn);
+      });
+      return row;
+    };
+    const section = (title, node, cls) => {
+      const box = el('div', 'quiz-reading-section' + (cls ? ' ' + cls : ''));
+      box.appendChild(el('div', 'quiz-board-label', title));
+      if (node) box.appendChild(node);
+      detail.appendChild(box);
+      return box;
+    };
+
+    // 「河から読み取れる説明」を選ぶ形式でも、回答後には相手の手牌と実際の待ちを公開する
+    if (question.mode !== 'reading') {
+      const waits = QuizEngine.hiddenWaits(question.hidden);
+      const box = el('div', 'quiz-reading-section');
+      box.appendChild(el('div', 'quiz-board-label', '相手の手牌(ここで公開)'));
+      const reveal = el('div', 'quiz-reveal');
+      const row = el('div', 'quiz-tile-row quiz-reading-tiles');
+      question.hidden.hand
+        .slice()
+        .sort((a, b) => a - b)
+        .forEach((tileIdx) => {
+          const b2 = UI.createTileButton(tileIdx, { disabled: true });
+          b2.classList.add('quiz-static-tile');
+          row.appendChild(b2);
+        });
+      reveal.appendChild(row);
+      if (question.hidden.melds && question.hidden.melds.length > 0) {
+        const meldRow = el('div', 'quiz-fuuro-row');
+        question.hidden.melds.forEach((meld) => {
+          const group = el('div', 'quiz-fuuro-group');
+          meld.tiles.forEach((tileIdx) => group.appendChild(UI.createMiniTile(tileIdx, { called: true })));
+          const typeLabel = { pon: 'ポン', chi: 'チー', minkan: '明槓', ankan: '暗槓' }[meld.type] || meld.type;
+          group.appendChild(el('span', 'quiz-fuuro-type', typeLabel));
+          meldRow.appendChild(group);
+        });
+        reveal.appendChild(meldRow);
+      }
+      box.appendChild(reveal);
+      const waitRow = el('div', 'quiz-tile-row quiz-reading-tiles');
+      waits.forEach((tileIdx) => {
+        const b3 = UI.createTileButton(tileIdx, { disabled: true });
+        b3.classList.add('quiz-static-tile', 'quiz-actual-wait');
+        waitRow.appendChild(b3);
+      });
+      box.appendChild(el('div', 'quiz-board-label', '実際の待ち牌'));
+      box.appendChild(waitRow);
+      if (question.hidden.shape) box.appendChild(el('div', 'quiz-detail-sub', '待ちの形: ' + question.hidden.shape));
+      detail.appendChild(box);
+      renderReadingClues(detail, board, waits);
+      parent.appendChild(detail);
+      return;
+    }
+
+    const reasoning = graded.reasoningDetail;
+    const hit = graded.hitDetail;
+
+    section('1. あなたが選んだ候補', tileRow(reasoning.selected, 'quiz-picked'));
+    section('2. 公開情報から警戒するのが妥当な候補', tileRow(reasoning.reasonableTiles, 'quiz-reasonable'));
+
+    const reasoningBox = section('3. 推理評価(公開情報の使い方)', null, 'quiz-reasoning-' + reasoning.gradeKey);
+    const rHead = el('div', 'quiz-reasoning-head');
+    rHead.appendChild(el('span', 'quiz-reasoning-mark', reasoning.mark));
+    rHead.appendChild(el('span', null, reasoning.grade.label));
+    reasoningBox.appendChild(rHead);
+    reasoning.reasons.forEach((r) => reasoningBox.appendChild(el('div', 'quiz-detail-sub', '・' + r)));
+
+    // ここから先が、回答後にだけ公開される情報
+    const revealed = el('div', 'quiz-reveal');
+    const hiddenInfo = question.hidden;
+    const handRow = el('div', 'quiz-tile-row quiz-reading-tiles');
+    hiddenInfo.hand
+      .slice()
+      .sort((a, b) => a - b)
+      .forEach((tileIdx) => {
+        const btn = UI.createTileButton(tileIdx, { disabled: true });
+        btn.classList.add('quiz-static-tile');
+        handRow.appendChild(btn);
+      });
+    revealed.appendChild(handRow);
+    if (hiddenInfo.melds && hiddenInfo.melds.length > 0) {
+      const meldRow = el('div', 'quiz-fuuro-row');
+      hiddenInfo.melds.forEach((meld) => {
+        const group = el('div', 'quiz-fuuro-group');
+        meld.tiles.forEach((tileIdx) => group.appendChild(UI.createMiniTile(tileIdx, { called: true })));
+        const typeLabel = { pon: 'ポン', chi: 'チー', minkan: '明槓', ankan: '暗槓' }[meld.type] || meld.type;
+        group.appendChild(el('span', 'quiz-fuuro-type', typeLabel));
+        meldRow.appendChild(group);
+      });
+      revealed.appendChild(meldRow);
+    }
+    section('4. 相手の手牌(ここで公開)', revealed);
+    section('5. 実際の待ち牌', tileRow(graded.actualWaits, 'quiz-actual-wait'));
+
+    const shapes = QuizEngine.hiddenWaitDetails(question.hidden);
+    const shapeText =
+      hiddenInfo.shape || [...new Set(shapes.reduce((a, x) => a.concat(x.waitLabels), []))].join(' / ') || '-';
+    section('6. 待ちの形', el('div', 'quiz-detail-sub', shapeText));
+
+    const hitBox = section('7. 待ち的中(実際の待ちとの照合)', null, 'quiz-hit-' + hit.levelKey);
+    const hHead = el('div', 'quiz-reasoning-head');
+    hHead.appendChild(el('span', 'quiz-hit-mark', hit.mark));
+    hHead.appendChild(el('span', null, hit.level.label));
+    hitBox.appendChild(hHead);
+    if (hit.matched.length > 0) {
+      hitBox.appendChild(el('div', 'quiz-detail-sub', '含まれていた待ち: ' + hit.matched.map((t) => Tiles.shortLabel(t)).join('・')));
+    }
+    if (hit.missedWaits.length > 0) {
+      hitBox.appendChild(el('div', 'quiz-detail-sub', '選べていなかった待ち: ' + hit.missedWaits.map((t) => Tiles.shortLabel(t)).join('・')));
+    }
+    hitBox.appendChild(
+      el(
+        'div',
+        'quiz-detail-sub',
+        '待ちが外れても、公開情報の使い方(推理評価)が妥当なら読みとしては正しい判断です。逆に、根拠が薄いまま偶然当たることもあります。'
+      )
+    );
+
+    renderReadingClues(detail, board, graded.actualWaits);
+    parent.appendChild(detail);
+  }
+
+  /** 8.河から読み取れたこと / 9.断定できなかったこと */
+  function renderReadingClues(parent, board, actualWaits) {
+    const clues = QuizEngine.readingClues(board);
+    const clueBox = el('div');
+    clues
+      .filter((c) => c.kind !== 'limit')
+      .forEach((c) => {
+        const row = el('div', 'quiz-clue quiz-clue-' + c.kind);
+        row.appendChild(el('span', 'quiz-clue-icon', c.kind === 'safe' ? '◯' : c.kind === 'danger' ? '△' : '・'));
+        row.appendChild(el('span', null, c.text));
+        clueBox.appendChild(row);
+      });
+    const box1 = el('div', 'quiz-reading-section');
+    box1.appendChild(el('div', 'quiz-board-label', '河(カワ)・鳴きから読み取れたこと'));
+    box1.appendChild(clueBox);
+    parent.appendChild(box1);
+
+    const limitBox = el('div');
+    clues
+      .filter((c) => c.kind === 'limit')
+      .forEach((c) => limitBox.appendChild(el('div', 'quiz-clue quiz-clue-limit', c.text)));
+    if (actualWaits && actualWaits.length > 0) {
+      limitBox.appendChild(
+        el(
+          'div',
+          'quiz-detail-sub',
+          '答えを見た今は当たり前に見えますが、回答時点の公開情報だけで' +
+            actualWaits.map((t) => Tiles.shortLabel(t)).join('・') +
+            'に絞り込むことはできませんでした。'
+        )
+      );
+    }
+    const box2 = el('div', 'quiz-reading-section');
+    box2.appendChild(el('div', 'quiz-board-label', '河だけでは断定できなかったこと'));
+    box2.appendChild(limitBox);
+    parent.appendChild(box2);
+  }
+
   function renderFeedback(parent, question, board) {
     const graded = state.graded;
     const box = el('div', 'quiz-feedback ' + (graded.correct ? 'quiz-feedback-correct' : 'quiz-feedback-wrong'));
 
     const head = el('div', 'quiz-feedback-head');
-    head.appendChild(el('span', 'quiz-feedback-mark', graded.correct ? '○' : '×'));
-    head.appendChild(el('strong', null, graded.correct ? '正解' : '不正解'));
+    if (question.mode === 'reading') {
+      // 待ち読みは「唯一の正解」ではなく、推理評価を主役に表示する
+      head.appendChild(el('span', 'quiz-feedback-mark', graded.reasoningDetail.mark));
+      head.appendChild(el('strong', null, graded.reasoningDetail.grade.label));
+      head.appendChild(el('span', 'quiz-hit-badge quiz-hit-' + graded.hitDetail.levelKey, '待ち: ' + graded.hitDetail.mark));
+    } else {
+      head.appendChild(el('span', 'quiz-feedback-mark', graded.correct ? '○' : '×'));
+      head.appendChild(el('strong', null, graded.correct ? '正解' : '不正解'));
+    }
     box.appendChild(head);
 
-    if (!graded.correct) {
+    if (!graded.correct && question.mode !== 'reading') {
       const correctLabels = question.choices
         .filter((c) => graded.correctIds.indexOf(c.id) !== -1)
         .map((c) => c.label || Tiles.shortLabel(c.tile));
       box.appendChild(el('div', 'quiz-feedback-answer', '正解: ' + correctLabels.join('・')));
     }
 
-    box.appendChild(el('p', 'quiz-explanation', question.explanation));
+    // 解説が長くなる問題は折りたためるようにする(スマホで読みやすくするため)
+    if (question.explanation.length > 140) {
+      const details = document.createElement('details');
+      details.className = 'quiz-explanation-details';
+      details.open = true;
+      const summary = document.createElement('summary');
+      summary.textContent = '初心者向け解説(タップで開閉)';
+      details.appendChild(summary);
+      details.appendChild(el('p', 'quiz-explanation', question.explanation));
+      box.appendChild(details);
+    } else {
+      box.appendChild(el('p', 'quiz-explanation', question.explanation));
+    }
 
     if (question.course === 'yaku') renderYakuDetail(box, question, board);
     else if (question.course === 'wait') renderWaitDetail(box, question, board);
     else if (question.course === 'furiten') renderFuritenDetail(box, question, board);
     else if (question.course === 'genbutsu') renderGenbutsuDetail(box, question, board);
     else if (question.course === 'defense') renderDefenseDetail(box, question, board);
+    else if (question.course === 'reading') renderReadingDetail(box, question, board);
 
     parent.appendChild(box);
   }
@@ -826,6 +1072,9 @@
           correct: r.correct,
           tags: r.tags,
           difficulty: r.difficulty,
+          // 待ち読み(V1.9): 推理評価と待ち的中は別々の指標として保存する
+          reasoning: r.reasoning,
+          hit: r.hit,
         }))
       );
       state.recorded = true;

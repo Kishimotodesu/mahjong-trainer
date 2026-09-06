@@ -14,7 +14,7 @@
 (function (root) {
   'use strict';
 
-  let Tiles, Shanten, HandInfo, Decomposition, Melds, Yaku, Scoring, Furiten, Safety, YakuReadings, Defense;
+  let Tiles, Shanten, HandInfo, Decomposition, Melds, Yaku, Scoring, Furiten, Safety, YakuReadings, Defense, Reading;
   if (typeof module !== 'undefined' && module.exports) {
     Tiles = require('./tiles.js');
     Shanten = require('./shanten.js');
@@ -27,6 +27,7 @@
     Safety = require('./safety.js');
     YakuReadings = require('./yakureadings.js');
     Defense = require('./defense.js');
+    Reading = require('./reading.js');
   } else {
     Tiles = root.MJ.Tiles;
     Shanten = root.MJ.Shanten;
@@ -39,6 +40,7 @@
     Safety = root.MJ.Safety;
     YakuReadings = root.MJ.YakuReadings;
     Defense = root.MJ.Defense;
+    Reading = root.MJ.Reading;
   }
 
   // ==================================================
@@ -203,6 +205,8 @@
         riichi: !!spec.riichi,
         riichiIndex: spec.riichiIndex === undefined ? -1 : spec.riichiIndex,
         riichiDeclaredAtTurnIndex: spec.riichiIndex === undefined ? -1 : spec.riichiIndex * 4 + seatOrder,
+        // 相手の副露(V1.9で追加)。鳴いた面子は全員から見えているため公開情報として扱う。
+        melds: (spec.melds || []).map((m) => Object.assign({}, m, { tiles: m.tiles.slice() })),
         discards,
         furitenTemporary: !!rawBoard.furitenTemporary && !!spec.isSelf,
         furitenRiichi: !!rawBoard.furitenRiichi && !!spec.isSelf,
@@ -233,6 +237,8 @@
       p.discards.forEach((d) => {
         counts[d.tile]++;
       });
+      // 相手が鳴いた面子も場に見えている
+      (p.melds || []).forEach((m) => m.tiles.forEach((t) => counts[t]++));
     });
     board.doraIndicators.forEach((t) => {
       counts[t]++;
@@ -606,6 +612,78 @@
   }
 
   // ==================================================
+  // 相手の待ち読み(V1.9)
+  // ==================================================
+
+  /**
+   * 公開情報だけの盤面を作って reading.js へ渡す。
+   * 伏せられた相手の手牌(question.hidden)はここに入れない。
+   * これにより「推理の計算に隠し情報が混ざらない」ことを構造的に保証する。
+   */
+  function publicBoard(board) {
+    const view = normalizeBoard(board);
+    view.visibleCounts = visibleCounts(view, false);
+    return view;
+  }
+
+  /**
+   * 相手の実際の待ちを計算する(答え合わせ専用)。
+   * 隠し手牌を使うため、推理側の処理からは絶対に呼ばないこと。
+   * @param {{hand:number[], melds:Array}} hidden
+   */
+  function hiddenWaits(hidden) {
+    const counts = Tiles.toCounts(hidden.hand);
+    return computeWinningTiles(counts, (hidden.melds || []).length);
+  }
+
+  /** 河・鳴きから読み取れる手掛かり(表示用)。公開情報だけを渡す。 */
+  function readingClues(board) {
+    const view = Object.assign({}, board, { visibleCounts: visibleCounts(board, false) });
+    return Reading.riverClues(view);
+  }
+
+  /** 相手の待ちの形(両面・嵌張など)を、答え合わせ表示用にまとめる */
+  function hiddenWaitDetails(hidden) {
+    const counts = Tiles.toCounts(hidden.hand);
+    const lockedMelds = (hidden.melds || []).length;
+    return hiddenWaits(hidden).map((tile) => {
+      const d = waitDetailForTile(counts, tile, lockedMelds);
+      return { tile, label: Tiles.shortLabel(tile), waitTypes: d.types, waitLabels: d.labels, blocks: d.blocks };
+    });
+  }
+
+  /**
+   * 待ち読み問題の採点。推理評価と待ち的中を分けて返す。
+   *  - 推理評価は公開情報だけ(reading.gradeReasoning)
+   *  - 待ち的中だけが実際の待ち(question.hidden)を参照する
+   * クイズ全体の正誤(correct)は「推理として妥当だったか(◎か○)」で決める。
+   * 待ちが外れても、公開情報の使い方が妥当なら不正解にはしない。
+   */
+  function gradeReadingQuestion(question, selectedIds) {
+    const board = publicBoard(question.board);
+    const choiceById = {};
+    question.choices.forEach((c) => (choiceById[c.id] = c));
+    const selectedTiles = (selectedIds || []).map((id) => choiceById[id]).filter(Boolean).map((c) => c.value);
+    const candidates = (question.candidates || []).map((c) => (typeof c === 'number' ? c : c.tile));
+    const count = question.selectCount || 3;
+
+    const reasoning = Reading.gradeReasoning(board, candidates, selectedTiles, count);
+    const actualWaits = hiddenWaits(question.hidden);
+    const hit = Reading.matchWaits(selectedTiles, actualWaits);
+
+    const correctIds = question.choices.filter((c) => reasoning.reasonableTiles.indexOf(c.value) !== -1).map((c) => c.id);
+    return {
+      correct: reasoning.gradeKey === 'excellent' || reasoning.gradeKey === 'good',
+      correctIds,
+      selectedIds: (selectedIds || []).slice(),
+      resolved: reasoning.reasonableTiles,
+      reasoning,
+      hit,
+      actualWaits,
+    };
+  }
+
+  // ==================================================
   // resolver: 問題の正解を本番ロジックから計算する
   // ==================================================
 
@@ -672,6 +750,21 @@
      * 採点は gradeQuestion 側で「グループ番号が増える順に並んでいるか」を見る。
      */
     safetyOrder: (board, args) => analyzeDefense(board, args && args.candidates).groupIndexOf,
+    // ---- 相手の待ち読み(V1.9) ----
+    /** 公開情報から見て「警戒するのが妥当」な牌の集合 */
+    readingTargets: (board, args) => {
+      const view = Object.assign({}, board, { visibleCounts: visibleCounts(board, false) });
+      const cands = (args && args.candidates) || [];
+      return new Set(Reading.reasonableTargets(view, cands, (args && args.selectCount) || 3).tiles);
+    },
+    /** 河・副露から読み取れる説明のうち、正しいものの集合 */
+    readingStatements: (board, args) => {
+      const view = Object.assign({}, board, { visibleCounts: visibleCounts(board, false) });
+      const statements = (args && args.statements) || [];
+      const trueValues = statements.filter((s) => Reading.evaluateStatement(view, s.statement)).map((s) => s.value);
+      return new Set(trueValues);
+    },
+
     /** 指定した牌に当てはまる「安全と考えられる理由」のキー集合 */
     safetyReasonKeys: (board, args) => {
       const result = analyzeDefense(board, args && args.candidates);
@@ -696,6 +789,7 @@
    */
   /** 候補牌を必要とする resolver には、問題データの candidates を自動で渡す */
   const CANDIDATE_RESOLVERS = [
+    'readingTargets',
     'genbutsuTiles',
     'safestTiles',
     'mostDangerousTiles',
@@ -740,12 +834,18 @@
   }
 
   function gradeQuestion(question, selectedIds) {
+    // 待ち読み問題は「推理評価」と「待ち的中」を分けて採点する
+    if (question.mode === 'reading') return gradeReadingQuestion(question, selectedIds);
+
     const board = normalizeBoard(question.board);
     const resolver = RESOLVERS[question.resolver];
     if (!resolver) throw new Error('未知のresolver: ' + question.resolver);
     const args = Object.assign({}, question.resolverArgs || {});
     if (CANDIDATE_RESOLVERS.indexOf(question.resolver) !== -1 && !args.candidates) {
       args.candidates = question.candidates || [];
+    }
+    if (question.resolver === 'readingStatements' && !args.statements) {
+      args.statements = question.choices.map((c) => ({ value: c.value, statement: c.statement }));
     }
     const resolved = resolver(board, args);
 
@@ -784,6 +884,11 @@
     analyzeGenbutsu,
     analyzeDefense,
     defenseCandidates,
+    publicBoard,
+    readingClues,
+    hiddenWaits,
+    hiddenWaitDetails,
+    gradeReadingQuestion,
     RESOLVERS,
     gradeQuestion,
   };

@@ -2584,3 +2584,169 @@ body {
   border-color: var(--good);
   font-weight: bold;
 }
+
+/* ==================================================
+   相手の待ち読み(V1.9)
+   ================================================== */
+
+.quiz-scene-describe {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  background: var(--bg-panel-light);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+/* 回答前の伏せ牌 */
+.quiz-back-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+
+.quiz-back-tile {
+  width: 26px;
+  height: 38px;
+  border-radius: 4px;
+  background: repeating-linear-gradient(45deg, #2b6151, #2b6151 4px, #24564a 4px, #24564a 8px);
+  border: 1px solid #14352c;
+  color: rgba(255, 255, 255, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+}
+
+.quiz-opponent-melds {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 6px;
+}
+
+.quiz-opponent-melds-label {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+/* 回答後の解説(順番に並ぶセクション) */
+.quiz-reading-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quiz-reading-section {
+  background: var(--bg-panel);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.quiz-reading-tiles {
+  gap: 4px;
+}
+
+.quiz-reading-tiles .tile.quiz-picked {
+  box-shadow: 0 0 0 3px var(--accent);
+}
+
+.quiz-reading-tiles .tile.quiz-reasonable {
+  box-shadow: 0 0 0 3px #6fb3d9;
+}
+
+.quiz-reading-tiles .tile.quiz-actual-wait {
+  box-shadow: 0 0 0 3px var(--bad);
+}
+
+.quiz-reveal {
+  border-radius: 6px;
+  padding: 6px;
+  background: rgba(224, 192, 96, 0.1);
+  border: 1px dashed var(--accent);
+}
+
+.quiz-reasoning-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  margin-bottom: 4px;
+}
+
+.quiz-reasoning-mark,
+.quiz-hit-mark {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.quiz-reasoning-excellent .quiz-reasoning-mark { color: #8fe3aa; }
+.quiz-reasoning-good .quiz-reasoning-mark { color: var(--accent-strong); }
+.quiz-reasoning-needsWork .quiz-reasoning-mark { color: #ffa8b4; }
+
+.quiz-hit-hit .quiz-hit-mark { color: #8fe3aa; }
+.quiz-hit-partial .quiz-hit-mark { color: var(--accent-strong); }
+.quiz-hit-miss .quiz-hit-mark { color: var(--text-dim); }
+
+.quiz-hit-badge {
+  font-size: 0.76rem;
+  border-radius: 999px;
+  padding: 2px 9px;
+  background: var(--bg-panel-light);
+  margin-left: auto;
+}
+
+.quiz-hit-badge.quiz-hit-hit { background: rgba(58, 166, 92, 0.3); }
+.quiz-hit-badge.quiz-hit-partial { background: rgba(224, 192, 96, 0.25); }
+.quiz-hit-badge.quiz-hit-miss { background: rgba(255, 255, 255, 0.08); }
+
+.quiz-clue {
+  display: flex;
+  gap: 6px;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  padding: 3px 0;
+}
+
+.quiz-clue-icon {
+  flex: 0 0 auto;
+  font-weight: bold;
+}
+
+.quiz-clue-safe .quiz-clue-icon { color: #8fe3aa; }
+.quiz-clue-danger .quiz-clue-icon { color: #f5c07a; }
+.quiz-clue-info .quiz-clue-icon { color: var(--text-dim); }
+
+.quiz-clue-limit {
+  color: var(--accent-strong);
+  background: rgba(224, 192, 96, 0.1);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.quiz-explanation-details summary {
+  cursor: pointer;
+  font-size: 0.84rem;
+  color: var(--text-dim);
+  padding: 4px 0;
+  min-height: 32px;
+}
+
+@media (max-width: 560px) {
+  .quiz-back-tile {
+    width: 22px;
+    height: 32px;
+  }
+
+  .quiz-reading-section {
+    padding: 8px;
+  }
+
+  .quiz-hit-badge {
+    margin-left: 0;
+  }
+}

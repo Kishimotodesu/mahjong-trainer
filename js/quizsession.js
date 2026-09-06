@@ -102,6 +102,12 @@
       correct: graded.correct,
       tags: question.tags || [],
       difficulty: question.difficulty || null,
+      // 待ち読み(V1.9): 集計用のキー(文字列)と、表示用の詳細を別々に持つ
+      reasoning: graded.reasoning ? graded.reasoning.gradeKey : null,
+      hit: graded.hit ? graded.hit.levelKey : null,
+      reasoningDetail: graded.reasoning || null,
+      hitDetail: graded.hit || null,
+      actualWaits: graded.actualWaits || null,
       selectedIds: graded.selectedIds,
       correctIds: graded.correctIds,
       resolved: graded.resolved,
@@ -161,6 +167,19 @@
     'dora-danger': 'ドラとその周辺の危険',
     'multi-factor': '複数の材料を組み合わせた比較',
     'multi-riichi': '2人リーチのときの安全牌',
+    // 相手の待ち読み(V1.9)
+    'reading-genbutsu': '河から現物(ゲンブツ)を見つけること',
+    'reading-suji': '河から筋(スジ)を読むこと',
+    'reading-kabe': '壁(カベ)を使った読み',
+    'reading-one-chance': 'ワンチャンスを使った読み',
+    'reading-honor': '字牌(ジハイ)待ちの読み',
+    'reading-dora': 'ドラ周辺の読み',
+    'reading-open-hand': '鳴いている相手の読み',
+    'reading-honitsu': '染め手(混一色)の読み',
+    'reading-toitoi': '対々和(トイトイ)の読み',
+    'reading-multi-wait': '多面待ちの考え方',
+    'reading-not-certain': '河だけでは断定できないという理解',
+    'reading-two-riichi': '2人リーチのときの読み分け',
     'genbutsu-after-riichi': 'リーチ後に通った牌',
     'genbutsu-other-river': '他家の河との違い',
     'genbutsu-aka': '赤5と通常の5の扱い',
@@ -189,6 +208,14 @@
     'multi-riichi': '「誰に対して安全か」を分けて考える練習をしましょう。片方の現物が、もう片方に安全とは限りません。',
     'furiten-own-river': '自分の河に待ち牌が入っていないかを毎回確認する習慣をつけましょう。',
     'dora-not-yaku': 'ドラは役ではありません。アガるには役が別に必要、という点を復習しましょう。',
+    'reading-not-certain':
+      '河から待ちを断定しようとしていないか確認しましょう。読みで分かるのは「候補を絞ること」までで、当てられなくても問題ありません。',
+    'reading-suji': '筋(スジ)は3つ違いの関係(1-4-7 / 2-5-8 / 3-6-9)です。どの牌の筋なのかを数えて確認しましょう。',
+    'reading-honitsu': '染め手(混一色)を疑う手掛かりを復習しましょう。「切っていない色」と「鳴いた色」に注目します。',
+    'reading-toitoi': 'ポンが2つ以上ある相手は、双碰(シャンポン)・単騎(タンキ)待ちが増えます。字牌や端の牌も警戒しましょう。',
+    'reading-honor': '河に字牌が出ていない相手は、字牌待ちの可能性が残ります。何が切られていないかを見る練習をしましょう。',
+    'reading-multi-wait': '多面待ちは候補が多く、3種類選んでも拾いきれません。当てにいくより、無筋を減らす考え方を身につけましょう。',
+    'reading-two-riichi': '2人リーチでは「どちらに対する読みなのか」を必ず分けて考えましょう。',
   };
 
   function tagAdvice(tag) {
@@ -228,10 +255,24 @@
       comment = `特に「${top}」でつまずいています。` + (advice || 'まずはこの2つを重点的に復習しましょう。');
     }
 
+    const reasoningCounts = { excellent: 0, good: 0, needsWork: 0 };
+    const hitCounts = { hit: 0, partial: 0, miss: 0 };
+    let readingAnswered = 0;
+    results.forEach((r) => {
+      if (r.reasoning) {
+        reasoningCounts[r.reasoning] = (reasoningCounts[r.reasoning] || 0) + 1;
+        readingAnswered++;
+      }
+      if (r.hit) hitCounts[r.hit] = (hitCounts[r.hit] || 0) + 1;
+    });
+
     return {
       total,
       correct,
       rate,
+      readingAnswered,
+      reasoningCounts,
+      hitCounts,
       wrongQuestionIds: wrong.map((r) => r.questionId),
       wrongTags,
       comment,
