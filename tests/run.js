@@ -32,6 +32,10 @@ const Probability = require(path.join(__dirname, '..', 'js', 'probability.js'));
 const YakuReadings = require(path.join(__dirname, '..', 'js', 'yakureadings.js'));
 const Lessons = require(path.join(__dirname, '..', 'js', 'lessons.js'));
 const LessonEngine = require(path.join(__dirname, '..', 'js', 'lessonengine.js'));
+const QuizData = require(path.join(__dirname, '..', 'js', 'quizdata.js'));
+const QuizEngine = require(path.join(__dirname, '..', 'js', 'quizengine.js'));
+const QuizSession = require(path.join(__dirname, '..', 'js', 'quizsession.js'));
+const QuizStats = require(path.join(__dirname, '..', 'js', 'quizstats.js'));
 
 function mulberry32(seed) {
   return function () {
@@ -1874,5 +1878,17 @@ require(path.join(__dirname, 'lesson-tests.js'))({
 });
 
 // ==================================================
+console.log('== クイズ・学習(初心者向けクイズ第一弾) ==');
+require(path.join(__dirname, 'quiz-tests.js'))({
+  test,
+  assert,
+  Tiles,
+  Shanten,
+  QuizData,
+  QuizEngine,
+  QuizSession,
+  QuizStats,
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
