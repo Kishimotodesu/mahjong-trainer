@@ -81,8 +81,17 @@
       });
       card.appendChild(statsRow);
 
+      if (course.note) card.appendChild(el('p', 'quiz-course-note', course.note));
+
+      if (course.difficulties && course.difficulties.length > 0) {
+        card.appendChild(renderDifficultySection(course, questions, store));
+      }
+
       const actions = el('div', 'quiz-course-actions');
-      const startBtn = el('button', 'primary', '挑戦する(全' + questions.length + '問から10問)');
+      const allLabel = course.difficulties
+        ? 'すべての難易度から10問'
+        : '挑戦する(全' + questions.length + '問から10問)';
+      const startBtn = el('button', 'primary', allLabel);
       startBtn.addEventListener('click', () => startSession(course.id, null));
       actions.appendChild(startBtn);
 
@@ -108,6 +117,37 @@
     });
     footer.appendChild(resetBtn);
     root.appendChild(footer);
+  }
+
+  /**
+   * 難易度ごとの説明・成績・開始ボタン(守備判断クイズなど、段階的に学ぶコース用)。
+   * 「おすすめ」は初級に付け、いきなり実戦へ入らないようにする。
+   */
+  function renderDifficultySection(course, questions, store) {
+    const box = el('div', 'quiz-difficulty-list');
+    const diffStats = QuizStats.difficultyStats(course.id, course.difficulties.map((d) => d.id), store);
+
+    course.difficulties.forEach((d) => {
+      const count = questions.filter((q) => q.difficulty === d.id).length;
+      const row = el('div', 'quiz-difficulty-row');
+
+      const head = el('div', 'quiz-difficulty-head');
+      head.appendChild(el('strong', null, d.name));
+      if (d.recommended) head.appendChild(el('span', 'quiz-recommend-badge', 'おすすめ'));
+      head.appendChild(el('span', 'quiz-difficulty-count', '全' + count + '問'));
+      const st = diffStats[d.id];
+      if (st && st.answered > 0) {
+        head.appendChild(el('span', 'quiz-difficulty-score', '正答率' + st.rate + '%(' + st.correct + '/' + st.answered + ')'));
+      }
+      row.appendChild(head);
+      row.appendChild(el('div', 'quiz-difficulty-desc', d.description));
+
+      const btn = el('button', d.recommended ? 'primary' : null, d.name + 'に挑戦する');
+      btn.addEventListener('click', () => startSession(course.id, null, d.id));
+      row.appendChild(btn);
+      box.appendChild(row);
+    });
+    return box;
   }
 
   // ==================================================
@@ -168,13 +208,15 @@
     const chips = el('div', 'quiz-chips');
     const add = (text, cls) => chips.appendChild(el('span', 'quiz-chip' + (cls ? ' ' + cls : ''), text));
 
-    if (question.course === 'yaku' || question.course === 'furiten') {
+    if (question.course === 'yaku' || question.course === 'furiten' || question.course === 'defense') {
       add('場風(バカゼ): ' + (WIND_NAMES[board.roundWind] || '-'));
       add('自風(ジカゼ): ' + (WIND_NAMES[board.seatWind] || '-'));
       if (board.winTile !== undefined && board.winTile !== null) {
         add((board.isTsumo ? 'ツモ' : 'ロン') + ': ' + Tiles.shortLabel(board.winTile), 'quiz-chip-strong');
       }
-      add(board.fuuro.length > 0 ? '副露あり(門前ではない)' : '門前(メンゼン)');
+      if (question.course !== 'defense') {
+        add(board.fuuro.length > 0 ? '副露あり(門前ではない)' : '門前(メンゼン)');
+      }
       if (board.isRiichi) add('立直(リーチ)宣言済み', 'quiz-chip-riichi');
       if (board.furitenTemporary) add('この巡で見逃しあり(同巡内フリテン)', 'quiz-chip-warn');
       if (board.furitenRiichi) add('リーチ後に見逃しあり', 'quiz-chip-warn');
@@ -223,7 +265,12 @@
 
   function toggleChoice(question, choiceId) {
     if (state.graded) return;
-    if (question.multi) {
+    if (question.mode === 'order') {
+      // 並べ替えはタップした順番がそのまま回答になる。もう一度タップすると取り消す。
+      const i = state.selected.indexOf(choiceId);
+      if (i === -1) state.selected.push(choiceId);
+      else state.selected.splice(i, 1);
+    } else if (question.multi) {
       const i = state.selected.indexOf(choiceId);
       if (i === -1) state.selected.push(choiceId);
       else state.selected.splice(i, 1);
@@ -235,6 +282,7 @@
 
   function choiceStatusClass(choiceId) {
     if (!state.graded) return '';
+    if (state.graded.mode === 'order') return state.graded.correct ? ' quiz-choice-correct' : ' quiz-choice-wrong';
     const isCorrectChoice = state.graded.correctIds.indexOf(choiceId) !== -1;
     const picked = state.graded.selectedIds.indexOf(choiceId) !== -1;
     if (isCorrectChoice) return ' quiz-choice-correct';
@@ -244,6 +292,10 @@
 
   function choiceMark(choiceId) {
     if (!state.graded) return '';
+    if (state.graded.mode === 'order') {
+      const pos = state.graded.selectedIds.indexOf(choiceId);
+      return pos === -1 ? '' : String(pos + 1) + '番目に選択';
+    }
     const isCorrectChoice = state.graded.correctIds.indexOf(choiceId) !== -1;
     const picked = state.graded.selectedIds.indexOf(choiceId) !== -1;
     if (isCorrectChoice) return picked ? '○ 正解(選んだ)' : '○ 正解(選べていない)';
@@ -271,12 +323,43 @@
         wrapper.appendChild(btn);
       }
 
+      if (question.mode === 'order') {
+        const pos = state.selected.indexOf(choice.id);
+        const badge = el('div', 'quiz-order-badge', pos === -1 ? '-' : String(pos + 1) + '番目');
+        if (pos !== -1) badge.classList.add('quiz-order-badge-on');
+        wrapper.appendChild(badge);
+      }
+
       const mark = choiceMark(choice.id);
       if (mark) wrapper.appendChild(el('div', 'quiz-choice-mark', mark));
       box.appendChild(wrapper);
     });
 
     parent.appendChild(box);
+
+    if (question.mode === 'order') {
+      const hint = el('div', 'quiz-order-hint');
+      hint.textContent =
+        state.selected.length === 0
+          ? '安全と思う牌から順にタップしてください(ドラッグは不要です)。'
+          : '選んだ順: ' +
+            state.selected
+              .map((id) => {
+                const c = question.choices.find((x) => x.id === id);
+                return Tiles.shortLabel(c.tile);
+              })
+              .join(' → ');
+      parent.appendChild(hint);
+
+      if (state.selected.length > 0 && !state.graded) {
+        const clear = el('button', 'quiz-order-clear', '選び直す');
+        clear.addEventListener('click', () => {
+          state.selected = [];
+          render();
+        });
+        parent.appendChild(clear);
+      }
+    }
   }
 
   // ==================================================
@@ -454,6 +537,92 @@
     parent.appendChild(detail);
   }
 
+  /**
+   * 守備判断クイズの解説。候補牌ごとに、安全度ランクと根拠(安全材料・危険材料)を並べる。
+   * 判定は defense.js が計算したものをそのまま表示するだけ(ここでルールを再実装しない)。
+   */
+  function renderDefenseDetail(parent, question, board) {
+    const result = QuizEngine.analyzeDefense(board, question.candidates || []);
+    const detail = el('div', 'quiz-detail quiz-defense-detail');
+
+    detail.appendChild(
+      el('div', 'quiz-detail-sub', result.targetLabel + 'に対する評価です。同じ牌でも、相手が変われば評価は変わります。')
+    );
+
+    result.candidates.forEach((c) => {
+      const card = el('div', 'quiz-defense-card rank-' + c.rank);
+
+      const head = el('div', 'quiz-defense-head');
+      const tileBox = el('div', 'quiz-defense-tile');
+      const btn = UI.createTileButton(c.tile, { disabled: true });
+      btn.classList.add('quiz-static-tile');
+      tileBox.appendChild(btn);
+      head.appendChild(tileBox);
+
+      const rankBox = el('div', 'quiz-defense-rankbox');
+      rankBox.appendChild(el('span', 'quiz-rank-badge rank-' + c.rank, c.rankShort));
+      rankBox.appendChild(el('span', 'quiz-rank-label', c.rankLabel));
+      head.appendChild(rankBox);
+      card.appendChild(head);
+
+      // 判定材料の一覧(○×だけでなく、文言でも読み取れるようにする)
+      const facts = el('div', 'quiz-defense-facts');
+      const factLine = (label, value) => {
+        const row = el('span', 'quiz-defense-fact');
+        row.appendChild(el('span', 'quiz-defense-fact-label', label));
+        row.appendChild(el('span', 'quiz-defense-fact-value', value));
+        facts.appendChild(row);
+      };
+      factLine('現物', c.genbutsu ? 'はい' : 'いいえ');
+      if (!c.honor.isHonor) {
+        factLine('筋', c.suji.isSuji ? (c.suji.isDoubleSuji ? '両スジ' : '片スジ') : 'なし');
+        factLine('壁', c.kabe.isKabe ? 'あり' : 'なし');
+        factLine('ワンチャンス', c.oneChance.isOneChance ? 'あり' : 'なし');
+      } else {
+        factLine('字牌の見え枚数', c.honor.visible + '枚(残り' + c.honor.remaining + '枚)');
+        factLine('役牌', c.honor.isYakuhai ? 'なる(' + c.honor.yakuhaiKind + ')' : 'ならない(' + c.honor.yakuhaiKind + ')');
+      }
+      factLine('ドラ', c.dora.isDora ? 'ドラそのもの' : c.dora.isAdjacent ? 'ドラの隣' : '無関係');
+      card.appendChild(facts);
+
+      if (c.safeFactors.length > 0) {
+        const box = el('div', 'quiz-factor-list quiz-factor-safe');
+        box.appendChild(el('div', 'quiz-factor-title', '◯ 安全材料'));
+        c.safeFactors.forEach((f) => {
+          const item = el('div', 'quiz-factor-item');
+          item.appendChild(el('span', 'quiz-factor-icon', '◯'));
+          item.appendChild(el('span', null, f.label + '：' + f.detail));
+          box.appendChild(item);
+        });
+        card.appendChild(box);
+      }
+      if (c.dangerFactors.length > 0) {
+        const box = el('div', 'quiz-factor-list quiz-factor-danger');
+        box.appendChild(el('div', 'quiz-factor-title', '△ 危険材料'));
+        c.dangerFactors.forEach((f) => {
+          const item = el('div', 'quiz-factor-item');
+          item.appendChild(el('span', 'quiz-factor-icon', '△'));
+          item.appendChild(el('span', null, f.label + '：' + f.detail));
+          box.appendChild(item);
+        });
+        card.appendChild(box);
+      }
+
+      card.appendChild(el('div', 'quiz-defense-reason', '最終評価: ' + c.reason));
+      detail.appendChild(card);
+    });
+
+    detail.appendChild(
+      el(
+        'div',
+        'quiz-detail-sub',
+        'ランクS以外は、牌譜統計ではなく「現物・筋・壁・ワンチャンス・字牌・ドラ」という材料だけから決めた相対評価です。' +
+          '筋や壁は完全な安全牌ではなく、嵌張(カンチャン)・辺張(ペンチャン)・双碰(シャンポン)・単騎(タンキ)待ちには当たる可能性が残ります。'
+      )
+    );
+    parent.appendChild(detail);
+  }
+
   function renderFeedback(parent, question, board) {
     const graded = state.graded;
     const box = el('div', 'quiz-feedback ' + (graded.correct ? 'quiz-feedback-correct' : 'quiz-feedback-wrong'));
@@ -476,6 +645,7 @@
     else if (question.course === 'wait') renderWaitDetail(box, question, board);
     else if (question.course === 'furiten') renderFuritenDetail(box, question, board);
     else if (question.course === 'genbutsu') renderGenbutsuDetail(box, question, board);
+    else if (question.course === 'defense') renderDefenseDetail(box, question, board);
 
     parent.appendChild(box);
   }
@@ -496,6 +666,16 @@
       const f = QuizEngine.analyzeFuriten(board);
       (f.blockingOwnDiscards || []).forEach((t) => tiles.push(t));
     }
+    if (question.course === 'defense') {
+      // 判断の根拠になった牌(現物の元・筋の元・壁/ワンチャンスの牌)を強調する
+      const result = QuizEngine.analyzeDefense(board, question.candidates || []);
+      result.candidates.forEach((c) => {
+        if (c.genbutsu) tiles.push(c.tile);
+        (c.suji.basis || []).forEach((t) => tiles.push(t));
+        (c.kabe.blockerTiles || []).forEach((t) => tiles.push(t));
+        (c.oneChance.blockerTiles || []).forEach((t) => tiles.push(t));
+      });
+    }
     return new Set(tiles);
   }
 
@@ -510,7 +690,13 @@
     const course = QuizData.getCourse(session.courseId);
 
     const header = el('div', 'quiz-runner-header');
-    header.appendChild(el('span', 'quiz-runner-course', course.name + (session.mode === 'review' ? '(復習)' : '')));
+    const diff =
+      session.difficulty && course.difficulties
+        ? (course.difficulties.find((d) => d.id === session.difficulty) || {}).name
+        : null;
+    header.appendChild(
+      el('span', 'quiz-runner-course', course.name + (diff ? '・' + diff : '') + (session.mode === 'review' ? '(復習)' : ''))
+    );
     header.appendChild(el('span', 'quiz-runner-progress', '第' + (session.index + 1) + '問 / 全' + session.questions.length + '問'));
     root.appendChild(header);
 
@@ -525,7 +711,8 @@
     const actions = el('div', 'quiz-actions');
     if (!state.graded) {
       const answerBtn = el('button', 'primary', '回答する');
-      answerBtn.disabled = state.selected.length === 0;
+      answerBtn.disabled =
+        question.mode === 'order' ? state.selected.length !== question.choices.length : state.selected.length === 0;
       answerBtn.addEventListener('click', submitAnswer);
       actions.appendChild(answerBtn);
       const quitBtn = el('button', null, 'コース選択へ戻る');
@@ -553,7 +740,11 @@
     const summary = state.summary;
     const course = QuizData.getCourse(state.session.courseId);
 
-    root.appendChild(el('h3', 'quiz-result-title', course.name + ' の結果'));
+    const difficultyName =
+      state.session.difficulty && course.difficulties
+        ? (course.difficulties.find((d) => d.id === state.session.difficulty) || {}).name
+        : null;
+    root.appendChild(el('h3', 'quiz-result-title', course.name + (difficultyName ? '(' + difficultyName + ')' : '') + ' の結果'));
 
     const scoreBox = el('div', 'quiz-result-score');
     scoreBox.appendChild(el('div', 'quiz-result-main', summary.correct + ' / ' + summary.total + ' 問正解'));
@@ -578,7 +769,7 @@
       actions.appendChild(reviewBtn);
     }
     const againBtn = el('button', summary.wrongQuestionIds.length > 0 ? '' : 'primary', 'もう一度挑戦する');
-    againBtn.addEventListener('click', () => startSession(state.session.courseId, null));
+    againBtn.addEventListener('click', () => startSession(state.session.courseId, null, state.session.difficulty));
     actions.appendChild(againBtn);
     const backBtn = el('button', null, 'コース選択へ戻る');
     backBtn.addEventListener('click', backToList);
@@ -590,8 +781,11 @@
   // 操作
   // ==================================================
 
-  function startSession(courseId, questionIds) {
-    state.session = QuizSession.createSession(courseId, questionIds ? { questionIds } : {});
+  function startSession(courseId, questionIds, difficulty) {
+    const options = {};
+    if (questionIds) options.questionIds = questionIds;
+    if (difficulty) options.difficulty = difficulty;
+    state.session = QuizSession.createSession(courseId, options);
     state.selected = [];
     state.graded = null;
     state.summary = null;
@@ -603,6 +797,7 @@
   function submitAnswer() {
     if (state.selected.length === 0) return;
     state.graded = QuizSession.answerCurrent(state.session, state.selected);
+    state.graded.mode = QuizSession.currentQuestion(state.session).mode || 'select';
     render();
   }
 
@@ -620,7 +815,12 @@
     if (!state.recorded) {
       QuizStats.recordAttempt(
         state.session.courseId,
-        state.summary.results.map((r) => ({ questionId: r.questionId, correct: r.correct, tags: r.tags }))
+        state.summary.results.map((r) => ({
+          questionId: r.questionId,
+          correct: r.correct,
+          tags: r.tags,
+          difficulty: r.difficulty,
+        }))
       );
       state.recorded = true;
     }

@@ -39,9 +39,11 @@
   /**
    * 出題する問題を選ぶ。
    * @param {string} courseId
-   * @param {{count:number, questionIds:string[], rng:Function}} [options]
+   * @param {{count:number, questionIds:string[], difficulty:string, rng:Function}} [options]
    *   questionIds を渡すと「その問題だけ」出題する(間違えた問題の復習用)。
    *   存在しないIDは無視する(問題データ更新でIDが消えてもエラーにしない)。
+   *   difficulty を渡すとその難易度だけを出題する(守備判断クイズの初級/中級/実戦)。
+   *   指定した難易度に問題が無い場合は、エラーにせずコース全体から出題する。
    */
   function pickQuestions(courseId, options) {
     options = options || {};
@@ -49,6 +51,10 @@
     const pool = QuizData.questionsForCourse(courseId);
 
     let candidates = pool;
+    if (options.difficulty) {
+      const filtered = pool.filter((q) => q.difficulty === options.difficulty);
+      if (filtered.length > 0) candidates = filtered;
+    }
     if (options.questionIds && options.questionIds.length > 0) {
       const wanted = new Set(options.questionIds);
       candidates = pool.filter((q) => wanted.has(q.id));
@@ -73,6 +79,7 @@
       index: 0,
       answers: [],
       mode: options.questionIds && options.questionIds.length > 0 ? 'review' : 'normal',
+      difficulty: options.difficulty || null,
       finished: questions.length === 0,
     };
   }
@@ -94,6 +101,7 @@
       questionId: question.id,
       correct: graded.correct,
       tags: question.tags || [],
+      difficulty: question.difficulty || null,
       selectedIds: graded.selectedIds,
       correctIds: graded.correctIds,
       resolved: graded.resolved,
@@ -143,6 +151,16 @@
     'no-yaku': '役なしでロンできないケース',
     'ron-ok': '通常どおりロンできるケース',
     genbutsu: '現物(ゲンブツ)の基本',
+    // 守備判断クイズ(V1.8)
+    'suji-basic': '筋(スジ)の基本',
+    'suji-not-safe': '筋は完全な安全牌ではないこと',
+    kabe: '壁(カベ)の使い方',
+    'one-chance': 'ワンチャンスの使い方',
+    'honor-tile': '字牌(ジハイ)の安全度',
+    'live-honor': '生牌(ションパイ)の危険',
+    'dora-danger': 'ドラとその周辺の危険',
+    'multi-factor': '複数の材料を組み合わせた比較',
+    'multi-riichi': '2人リーチのときの安全牌',
     'genbutsu-after-riichi': 'リーチ後に通った牌',
     'genbutsu-other-river': '他家の河との違い',
     'genbutsu-aka': '赤5と通常の5の扱い',
@@ -151,6 +169,30 @@
 
   function tagLabel(tag) {
     return TAG_LABELS[tag] || tag;
+  }
+
+  /**
+   * 学習タグごとの「次に何をすればよいか」を初心者向けの言葉で伝える。
+   * 用語だけを並べても復習の手がかりにならないため、間違いの傾向と次の一手をセットで書く。
+   */
+  const TAG_ADVICE = {
+    'suji-basic': '筋(スジ)の考え方があいまいなようです。1・4・7 / 2・5・8 / 3・6・9 の組をもう一度確認しましょう。',
+    'suji-not-safe':
+      '筋(スジ)を完全な安全牌だと考えてしまう傾向があります。筋で否定できるのは両面待ちの一部だけなので、次は「筋でも当たる問題」を復習しましょう。',
+    genbutsu: '現物(ゲンブツ)の見つけ方を復習しましょう。安全と言い切れるのは、その相手自身の河にある牌だけです。',
+    kabe: '壁(カベ)の使い方を復習しましょう。4枚見えの牌を使う形は作れない、という考え方が土台になります。',
+    'one-chance': 'ワンチャンスを過信していないか確認しましょう。残り1枚を相手が持っていれば当たります(壁より弱い根拠です)。',
+    'honor-tile': '字牌(ジハイ)は「見えている枚数」で安全度が変わります。何枚見えているかを数える練習をしましょう。',
+    'live-honor': '生牌(ションパイ)の字牌、特に役牌(ヤクハイ)の危険を軽く見ている傾向があります。終盤ほど注意しましょう。',
+    'dora-danger': 'ドラとその周辺は残されやすい牌です。ただし現物ならドラでも安全、という区別も一緒に覚えましょう。',
+    'multi-factor': '材料が複数あるときの比べ方を復習しましょう。現物 > 壁 > 筋 > ワンチャンス の順で根拠が強くなります。',
+    'multi-riichi': '「誰に対して安全か」を分けて考える練習をしましょう。片方の現物が、もう片方に安全とは限りません。',
+    'furiten-own-river': '自分の河に待ち牌が入っていないかを毎回確認する習慣をつけましょう。',
+    'dora-not-yaku': 'ドラは役ではありません。アガるには役が別に必要、という点を復習しましょう。',
+  };
+
+  function tagAdvice(tag) {
+    return TAG_ADVICE[tag] || null;
   }
 
   /**
@@ -178,10 +220,12 @@
     } else if (wrong.length === 0) {
       comment = '全問正解です。この分野は理解できています。次のコースにも挑戦してみましょう。';
     } else if (wrongTags.length === 1) {
-      comment = `苦手なのは「${wrongTags[0].label}」のようです。ここだけ復習すれば正答率はすぐ上がります。`;
+      comment =
+        tagAdvice(wrongTags[0].tag) || `苦手なのは「${wrongTags[0].label}」のようです。ここだけ復習すれば正答率はすぐ上がります。`;
     } else {
       const top = wrongTags.slice(0, 2).map((t) => t.label).join('」と「');
-      comment = `特に「${top}」でつまずいています。まずはこの2つを重点的に復習しましょう。`;
+      const advice = tagAdvice(wrongTags[0].tag);
+      comment = `特に「${top}」でつまずいています。` + (advice || 'まずはこの2つを重点的に復習しましょう。');
     }
 
     return {
@@ -206,6 +250,8 @@
     goNext,
     summarize,
     tagLabel,
+    TAG_ADVICE,
+    tagAdvice,
   };
 
   if (typeof module !== 'undefined' && module.exports) {

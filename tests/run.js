@@ -36,6 +36,7 @@ const QuizData = require(path.join(__dirname, '..', 'js', 'quizdata.js'));
 const QuizEngine = require(path.join(__dirname, '..', 'js', 'quizengine.js'));
 const QuizSession = require(path.join(__dirname, '..', 'js', 'quizsession.js'));
 const QuizStats = require(path.join(__dirname, '..', 'js', 'quizstats.js'));
+const Defense = require(path.join(__dirname, '..', 'js', 'defense.js'));
 
 function mulberry32(seed) {
   return function () {
@@ -1884,6 +1885,18 @@ require(path.join(__dirname, 'quiz-tests.js'))({
   assert,
   Tiles,
   Shanten,
+  QuizData,
+  QuizEngine,
+  QuizSession,
+  QuizStats,
+});
+
+console.log('== 守備判断クイズ(V1.8) ==');
+require(path.join(__dirname, 'defense-tests.js'))({
+  test,
+  assert,
+  Tiles,
+  Defense,
   QuizData,
   QuizEngine,
   QuizSession,
