@@ -596,10 +596,14 @@
         });
         card.appendChild(box);
       }
-      if (c.dangerFactors.length > 0) {
+      // どの牌にも同じ文言が付く一般的な注意は、下にまとめて1回だけ出す(解説を短く保つ)
+      const specificDangers = c.dangerFactors.filter(
+        (f) => window.MJ.Defense.GENERIC_DANGER_KEYS.indexOf(f.key) === -1
+      );
+      if (specificDangers.length > 0) {
         const box = el('div', 'quiz-factor-list quiz-factor-danger');
         box.appendChild(el('div', 'quiz-factor-title', '△ 危険材料'));
-        c.dangerFactors.forEach((f) => {
+        specificDangers.forEach((f) => {
           const item = el('div', 'quiz-factor-item');
           item.appendChild(el('span', 'quiz-factor-icon', '△'));
           item.appendChild(el('span', null, f.label + '：' + f.detail));
@@ -612,14 +616,14 @@
       detail.appendChild(card);
     });
 
-    detail.appendChild(
-      el(
-        'div',
-        'quiz-detail-sub',
-        'ランクS以外は、牌譜統計ではなく「現物・筋・壁・ワンチャンス・字牌・ドラ」という材料だけから決めた相対評価です。' +
-          '筋や壁は完全な安全牌ではなく、嵌張(カンチャン)・辺張(ペンチャン)・双碰(シャンポン)・単騎(タンキ)待ちには当たる可能性が残ります。'
-      )
-    );
+    const notes = el('div', 'quiz-detail-sub');
+    notes.textContent =
+      'ランクS以外は、牌譜統計ではなく「現物・筋・壁・ワンチャンス・字牌・ドラ」という材料だけから決めた相対評価です。' +
+      '筋や壁で否定できるのは両面待ちの一部だけで、どの牌も嵌張(カンチャン)・辺張(ペンチャン)・双碰(シャンポン)・単騎(タンキ)待ちには当たる可能性が残ります。';
+    if (result.candidates.some((c) => c.dangerFactors.some((f) => f.key === 'other-player'))) {
+      notes.textContent += ' また、この評価は' + result.targetLabel + 'に対するものです。他にリーチしている相手には別に安全度を考えてください。';
+    }
+    detail.appendChild(notes);
     parent.appendChild(detail);
   }
 
