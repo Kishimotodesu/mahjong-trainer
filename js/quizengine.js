@@ -305,6 +305,23 @@
   }
 
   /**
+   * 待ち全体を1行で表す名前を作る。
+   * 複合形(例: 34索+55索)は「単騎待ち」など1つの読み方に断定できないため、
+   * 待ち牌ごとの形をすべて集めてから、1種類のときだけ形の名前を断定する。
+   * (handinfo.js の classifyWait が返すラベルは「分解の一例」であり、
+   *  初心者向けの見出しとしてそのまま断定表示すると誤解を招くため)
+   */
+  function summarizeWaitShape(details) {
+    const types = new Set();
+    details.forEach((d) => d.waitTypes.forEach((t) => types.add(t)));
+    if (types.size === 0) return null;
+    if (types.size === 1) return WAIT_LABEL[[...types][0]];
+    const labels = [...types].map((t) => WAIT_LABEL[t] || t).join('・');
+    const head = details.length >= 3 ? '多面待ち(タメンマチ)' : '複数の読み方ができる形';
+    return head + ' … ' + labels + ' が重なっています';
+  }
+
+  /**
    * 待ち全体の情報(表示・解説用)。
    * @returns {{
    *   tiles: Array<{tile:number,label:string,remaining:number,waitTypes:string[],waitLabels:string[],blocks:Array}>,
@@ -340,6 +357,7 @@
       kinds: details.length,
       totalRemaining: details.reduce((s, d) => s + d.remaining, 0),
       shapeLabel,
+      shapeSummary: summarizeWaitShape(details),
       valid: details.length > 0,
     };
   }
@@ -644,6 +662,7 @@
     visibleCounts,
     computeWinningTiles,
     waitDetailForTile,
+    summarizeWaitShape,
     analyzeWaits,
     analyzeYaku,
     isYakuhaiTile,

@@ -345,7 +345,7 @@
     const detail = el('div', 'quiz-detail');
 
     line(detail, '待ち牌', waits.tiles.map((t) => t.label).join('・') + '(' + waits.kinds + '種類)');
-    if (waits.shapeLabel) line(detail, '待ちの形', waits.shapeLabel);
+    if (waits.shapeSummary) line(detail, '待ちの形', waits.shapeSummary);
 
     waits.tiles.forEach((t) => {
       const parts = t.blocks
