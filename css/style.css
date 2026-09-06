@@ -2259,7 +2259,8 @@ body {
 }
 
 .quiz-detail-label {
-  flex: 0 0 100px;
+  /* 「最大で何枚待ちか」等のラベルが途中で折り返さない幅にする */
+  flex: 0 0 132px;
   color: var(--text-dim);
 }
 
