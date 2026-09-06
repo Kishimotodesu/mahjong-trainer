@@ -191,6 +191,23 @@ module.exports = function ({ test, assert, Tiles, Shanten, QuizData, QuizEngine,
     });
   });
 
+  test('待ちクイズ: 複合形の「待ちの形」を1つの名前に断定しない', () => {
+    // 34索+55索は「両面待ち」と「単騎待ち」の両方に読める形。
+    // handinfo.js の分解一例(単騎待ち)をそのまま見出しにすると初心者が誤解するため、
+    // 複数の読み方があることが分かる表現になっていること。
+    const board = QuizEngine.normalizeBoard({ hand: parse('234m456m789p34s55s') });
+    const waits = QuizEngine.analyzeWaits(board);
+    assert.strictEqual(waits.kinds, 2);
+    assert.ok(waits.shapeSummary.indexOf('両面待ち') >= 0, '両面待ちが説明に含まれていない: ' + waits.shapeSummary);
+    assert.ok(waits.shapeSummary !== '単騎待ち(タンキマチ)', '一例だけを断定表示している');
+
+    // 単一の形なら、その名前を断定してよい
+    const kanchan = QuizEngine.analyzeWaits(QuizEngine.normalizeBoard({ hand: parse('123m456m789m22p35s') }));
+    assert.strictEqual(kanchan.shapeSummary, '嵌張待ち(カンチャンマチ)');
+    const multi = QuizEngine.analyzeWaits(QuizEngine.normalizeBoard({ hand: parse('234m567m11p23456s') }));
+    assert.strictEqual(multi.shapeSummary, '両面待ち(リャンメンマチ)');
+  });
+
   // ==================================================
   // フリテンクイズ
   // ==================================================
