@@ -2577,3 +2577,10 @@ body {
     font-size: 0.8rem;
   }
 }
+
+/* 河の中で、判断の根拠になった牌を強調する(色だけに頼らないよう枠も太くする) */
+.mini-tile.quiz-highlight-mini {
+  box-shadow: 0 0 0 2px var(--good);
+  border-color: var(--good);
+  font-weight: bold;
+}
