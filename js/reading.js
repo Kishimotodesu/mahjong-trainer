@@ -40,16 +40,16 @@
 
   /** 推理評価(公開情報の使い方) */
   const REASONING = {
-    excellent: { key: 'excellent', mark: '◎', label: '◎ 公開情報を正しく使えています' },
-    good: { key: 'good', mark: '○', label: '○ 概ね妥当な読みです' },
-    needsWork: { key: 'needsWork', mark: '△', label: '△ 重要な手掛かりを見落としています' },
+    excellent: { key: 'excellent', mark: '◎', label: '公開情報を正しく使えています' },
+    good: { key: 'good', mark: '○', label: '概ね妥当な読みです' },
+    needsWork: { key: 'needsWork', mark: '△', label: '重要な手掛かりを見落としています' },
   };
 
   /** 待ち的中(実際の待ちとの照合。推理評価とは別物) */
   const HIT = {
-    hit: { key: 'hit', mark: '的中', label: '待ち的中(実際の待ちをすべて含んでいました)' },
-    partial: { key: 'partial', mark: '一部的中', label: '一部的中(実際の待ちの一部を含んでいました)' },
-    miss: { key: 'miss', mark: '不的中', label: '不的中(実際の待ちは含まれていませんでした)' },
+    hit: { key: 'hit', mark: '的中', label: '実際の待ちをすべて含んでいました' },
+    partial: { key: 'partial', mark: '一部的中', label: '実際の待ちの一部を含んでいました' },
+    miss: { key: 'miss', mark: '不的中', label: '実際の待ちは含まれていませんでした' },
   };
 
   /**
