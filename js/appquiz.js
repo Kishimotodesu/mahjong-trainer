@@ -181,7 +181,7 @@
     parent.appendChild(block);
   }
 
-  function renderRivers(parent, board) {
+  function renderRivers(parent, board, highlightSet) {
     const withDiscards = board.players.filter((p) => p.discards.length > 0);
     if (withDiscards.length === 0) return;
     const block = el('div', 'quiz-board-block');
@@ -196,6 +196,8 @@
       p.discards.forEach((d, i) => {
         const mini = UI.createMiniTile(d.tile, { isRiichiTile: p.riichiIndex === i });
         if (p.riichiIndex === i) mini.title = '立直(リーチ)宣言牌';
+        // 判断の根拠になった牌(現物の元・筋の元など)は河の中でも強調する
+        if (highlightSet && highlightSet.has(d.tile)) mini.classList.add('quiz-highlight-mini');
         tilesRow.appendChild(mini);
       });
       pileBox.appendChild(tilesRow);
@@ -250,7 +252,7 @@
     }
 
     renderFuuro(box, board.fuuro);
-    renderRivers(box, board);
+    renderRivers(box, board, highlightSet);
 
     parent.appendChild(box);
   }
