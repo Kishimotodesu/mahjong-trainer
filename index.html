@@ -15,6 +15,7 @@
 
 <nav class="tabs">
   <button class="tab-btn active" data-tab="game">対局</button>
+  <button class="tab-btn" data-tab="quiz">クイズ・学習</button>
   <button class="tab-btn" data-tab="training">トレーニング</button>
   <button class="tab-btn" data-tab="mondai">何切る問題</button>
   <button class="tab-btn" data-tab="review">復習帳</button>
@@ -498,6 +499,17 @@
   </section>
 
   <!-- ============ 用語辞典タブ ============ -->
+  <!-- ============ クイズ・学習タブ ============ -->
+  <section id="tab-quiz" class="tab-panel">
+    <h2>クイズ・学習(初心者向け)</h2>
+    <p class="hint-text">
+      牌の形を見ながら「役」「待ち」「フリテン」「現物(ゲンブツ)」を覚えるクイズです。
+      1回10問・タイマーなしなので、自分のペースで牌を確認しながら答えてください。
+      回答すると、正解・不正解だけでなく理由の解説と、関係する牌の強調表示が出ます。
+    </p>
+    <div id="quiz-view"></div>
+  </section>
+
   <section id="tab-dictionary" class="tab-panel">
     <h2>初心者向け用語辞典</h2>
     <div id="dictionary-list"></div>
@@ -543,6 +555,10 @@
 <script src="js/lessonengine.js"></script>
 <script src="js/review.js"></script>
 <script src="js/problems.js"></script>
+<script src="js/quizengine.js"></script>
+<script src="js/quizdata.js"></script>
+<script src="js/quizsession.js"></script>
+<script src="js/quizstats.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/app.js"></script>
 <script src="js/appgame.js"></script>
@@ -550,5 +566,6 @@
 <script src="js/appkifu.js"></script>
 <script src="js/applesson.js"></script>
 <script src="js/apptutorial.js"></script>
+<script src="js/appquiz.js"></script>
 </body>
 </html>

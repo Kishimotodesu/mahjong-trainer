@@ -118,6 +118,7 @@
         if (tab === 'kifu' && window.MJ.AppKifu) window.MJ.AppKifu.refreshList();
         if (tab === 'review' && window.MJ.AppReview) window.MJ.AppReview.render();
         if (tab === 'tutorial' && window.MJ.AppLesson) window.MJ.AppLesson.render();
+        if (tab === 'quiz' && window.MJ.AppQuiz) window.MJ.AppQuiz.render();
       });
     });
   }
