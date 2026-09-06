@@ -13,8 +13,19 @@
   const VERSION = 1;
 
   function emptyCourse() {
-    // byDifficulty はV1.8で追加。古い保存データには存在しないため、読み込み時に必ず補う。
-    return { attempts: 0, correct: 0, answered: 0, lastAt: null, wrongQuestionIds: [], byDifficulty: {} };
+    // byDifficulty はV1.8、reasoning/hit はV1.9で追加。
+    // 古い保存データには存在しないため、読み込み時に必ず補う。
+    return {
+      attempts: 0,
+      correct: 0,
+      answered: 0,
+      lastAt: null,
+      wrongQuestionIds: [],
+      byDifficulty: {},
+      // 推理評価(公開情報の使い方)と待ち的中(実際の待ちと合っていたか)は別々に数える
+      reasoning: { excellent: 0, good: 0, needsWork: 0 },
+      hit: { hit: 0, partial: 0, miss: 0 },
+    };
   }
 
   function emptyStore() {
@@ -58,6 +69,8 @@
     return Object.assign(emptyCourse(), c, {
       wrongQuestionIds: Array.isArray(c.wrongQuestionIds) ? c.wrongQuestionIds : [],
       byDifficulty: c.byDifficulty && typeof c.byDifficulty === 'object' ? c.byDifficulty : {},
+      reasoning: Object.assign({ excellent: 0, good: 0, needsWork: 0 }, c.reasoning || {}),
+      hit: Object.assign({ hit: 0, partial: 0, miss: 0 }, c.hit || {}),
     });
   }
 
@@ -79,6 +92,8 @@
     const c = s.courses[courseId];
     if (!Array.isArray(c.wrongQuestionIds)) c.wrongQuestionIds = [];
     if (!c.byDifficulty || typeof c.byDifficulty !== 'object') c.byDifficulty = {};
+    if (!c.reasoning || typeof c.reasoning !== 'object') c.reasoning = { excellent: 0, good: 0, needsWork: 0 };
+    if (!c.hit || typeof c.hit !== 'object') c.hit = { hit: 0, partial: 0, miss: 0 };
 
     c.attempts += 1;
     c.answered += results.length;
@@ -99,6 +114,9 @@
         c.byDifficulty[r.difficulty].answered += 1;
         if (r.correct) c.byDifficulty[r.difficulty].correct += 1;
       }
+      // 推理評価と待ち的中は、別々の指標として保存する(混ぜない)
+      if (r.reasoning) c.reasoning[r.reasoning] = (c.reasoning[r.reasoning] || 0) + 1;
+      if (r.hit) c.hit[r.hit] = (c.hit[r.hit] || 0) + 1;
     });
     c.wrongQuestionIds = [...wrongSet];
 
@@ -117,6 +135,26 @@
     if (!existingIds) return stats.wrongQuestionIds.slice();
     const exists = new Set(existingIds);
     return stats.wrongQuestionIds.filter((id) => exists.has(id));
+  }
+
+  /**
+   * 待ち読みコースの成績。
+   * 「待ち的中率」はユーザー自身のクイズ成績であり、放銃率や実際の待ちの確率ではない。
+   */
+  function readingStats(courseId, store) {
+    const stats = courseStats(courseId, store);
+    const reasoning = stats.reasoning;
+    const hit = stats.hit;
+    const reasoningTotal = reasoning.excellent + reasoning.good + reasoning.needsWork;
+    const hitTotal = hit.hit + hit.partial + hit.miss;
+    return {
+      reasoning,
+      hit,
+      reasoningTotal,
+      hitTotal,
+      reasonableRate: reasoningTotal ? Math.round(((reasoning.excellent + reasoning.good) / reasoningTotal) * 100) : null,
+      hitRate: hitTotal ? Math.round(((hit.hit + hit.partial) / hitTotal) * 100) : null,
+    };
   }
 
   /** 難易度別の成績(未挑戦の難易度は 0/0 で返す) */
@@ -168,6 +206,7 @@
     accuracy,
     recordAttempt,
     difficultyStats,
+    readingStats,
     wrongQuestionIds,
     tagStats,
     resetAll,

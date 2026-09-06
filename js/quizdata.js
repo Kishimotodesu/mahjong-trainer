@@ -16,11 +16,13 @@
   'use strict';
 
   // 第二弾以降のコースは別ファイルに分けて、ここで1つの問題集にまとめる
-  let QuizDataDefense;
+  let QuizDataDefense, QuizDataReading;
   if (typeof module !== 'undefined' && module.exports) {
     QuizDataDefense = require('./quizdata-defense.js');
+    QuizDataReading = require('./quizdata-reading.js');
   } else {
     QuizDataDefense = root.MJ.QuizDataDefense;
+    QuizDataReading = root.MJ.QuizDataReading;
   }
 
   // ---- 簡易表記 → 牌インデックス配列 ----
@@ -87,6 +89,7 @@
       icon: '現',
     },
     QuizDataDefense.DEFENSE_COURSE,
+    QuizDataReading.READING_COURSE,
   ];
 
   // ==================================================
@@ -1478,7 +1481,8 @@
     WAIT_QUESTIONS,
     FURITEN_QUESTIONS,
     GENBUTSU_QUESTIONS,
-    QuizDataDefense.DEFENSE_QUESTIONS
+    QuizDataDefense.DEFENSE_QUESTIONS,
+    QuizDataReading.READING_QUESTIONS
   );
 
   function questionsForCourse(courseId) {
