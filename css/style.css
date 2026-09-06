@@ -2326,12 +2326,6 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .quiz-tile-row .tile,
-  .quiz-choices-tile .tile {
-    width: 40px;
-    height: 58px;
-  }
-
   .quiz-detail-row {
     flex-direction: column;
     gap: 2px;
@@ -2354,10 +2348,3 @@ body {
   }
 }
 
-@media (max-width: 380px) {
-  .quiz-tile-row .tile,
-  .quiz-choices-tile .tile {
-    width: 34px;
-    height: 50px;
-  }
-}
