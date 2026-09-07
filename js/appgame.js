@@ -19,6 +19,7 @@
   const Kifu = window.MJ.Kifu;
   const CPU = window.MJ.CPU;
   const UI = window.MJ.UI;
+  const LiveSnapshot = window.MJ.LiveSnapshot;
 
   const HUMAN_SEAT = 0;
   const RELATIVE_LABELS = ['自分', '下家', '対面', '上家'];
@@ -30,7 +31,30 @@
     riichiArmed: false,
     kifu: null,
     kifuEventCursor: 0,
+    // 二重打牌・二重進行を防ぐためのロック(V2.0)
+    busy: false,
   };
+
+  /** 実戦学習モード(applive.js)。読み込まれていない環境でも対局は動くようにする。 */
+  function live() {
+    return window.MJ.AppLive || null;
+  }
+
+  /** 学習問題を表示中は、対局の操作を受け付けない */
+  function isLocked() {
+    const l = live();
+    return gameTab.busy || !!(l && l.isBlocking());
+  }
+
+  /**
+   * 公開情報だけで「見えている牌」を数える。
+   * コーチ表示でも他家の手牌を使わないようにするため、V2.0からこちらを使う。
+   */
+  function publicVisibleCounts() {
+    return LiveSnapshot
+      ? LiveSnapshot.publicVisibleCounts(gameTab.match, HUMAN_SEAT)
+      : CPU.buildVisibleCounts(gameTab.match);
+  }
 
   function windLabelFor(p) {
     return Tiles.HONOR_NAMES[p.seatWind - 27];
@@ -66,18 +90,78 @@
     document.getElementById('game-table').hidden = false;
     document.getElementById('game-match-over-panel').hidden = true;
 
+    gameTab.busy = false;
+    if (live()) {
+      live().onGameStart();
+      live().onRoundStart(roundLabelOf(gameTab.match));
+    }
     advanceAndRender();
   }
 
+  function roundLabelOf(match) {
+    const round = match.currentRound;
+    if (!round) return '';
+    return (round.roundWindIndexAtStart === 0 ? '東' : '南') + round.roundNumberAtStart + '局 ' + round.honbaAtStart + '本場';
+  }
+
+  /**
+   * CPUの手番を進めて描画する。
+   * 学習問題を表示中は進行しない(問題を閉じてから再開する)。
+   */
   function advanceAndRender() {
+    const l = live();
+    if (l && l.isBlocking()) {
+      renderGameTable();
+      return;
+    }
     Round.advanceUntilHumanInput(gameTab.match, 1000);
     gameTab.kifuEventCursor = Kifu.appendEventsSince(gameTab.kifu, gameTab.match, gameTab.kifuEventCursor);
     renderGameTable();
+
+    if (!l) return;
+    const round = gameTab.match.currentRound;
+    if (round.phase === 'round_over') {
+      l.onRoundEnd(resultLabelOf(gameTab.match));
+      return;
+    }
+    // 自分の打牌待ちのときだけ出題する(ロン・ツモ・リーチの操作は邪魔しない)
+    if (round.phase === 'awaiting_discard' && round.turnSeat === HUMAN_SEAT) {
+      const tsumo = Round.canTsumoAgari(gameTab.match, HUMAN_SEAT);
+      if (!tsumo && l.maybeAsk()) renderGameTable();
+    } else if (round.phase === 'awaiting_calls' && round.callOptions && round.callOptions[HUMAN_SEAT]) {
+      const opt = round.callOptions[HUMAN_SEAT];
+      if (!opt.canRon) {
+        const info = opt.canPon
+          ? { action: 'pon', tile: round.pendingDiscard.tile }
+          : opt.canChi
+          ? { action: 'chi', tile: round.pendingDiscard.tile, chiTiles: opt.chiOptions[0] }
+          : opt.canKan
+          ? { action: 'kan', tile: round.pendingDiscard.tile }
+          : null;
+        if (info && l.maybeAskCall(Object.assign({ canRon: opt.canRon }, info))) renderGameTable();
+      }
+    }
+  }
+
+  /** 振り返りに書く「この局の結果」 */
+  function resultLabelOf(match) {
+    const result = match.currentRound ? match.currentRound.result : null;
+    if (!result) return '';
+    if (result.type === 'ryuukyoku') return '流局';
+    if (result.winners && result.winners.length > 0) {
+      const w = result.winners[0];
+      if (w.seat === HUMAN_SEAT) return result.loserSeat === HUMAN_SEAT ? 'あなたのツモ和了' : 'あなたのロン和了';
+      if (result.loserSeat === HUMAN_SEAT) return 'あなたの放銃(ホウジュウ)';
+      return match.players[w.seat].name + 'の和了';
+    }
+    return '';
   }
 
   function handleNextRound() {
     if (gameTab.match.isOver) return;
+    if (isLocked()) return;
     gameTab.match = GameState.startRound(gameTab.match);
+    if (live()) live().onRoundStart(roundLabelOf(gameTab.match));
     Kifu.recordRoundStart(gameTab.kifu, gameTab.match);
     gameTab.kifuEventCursor = 0;
     gameTab.selectedPosition = null;
@@ -116,6 +200,7 @@
   }
 
   function handleHandTileClick(tileValue, position) {
+    if (isLocked()) return;
     const round = gameTab.match.currentRound;
     if (round.phase !== 'awaiting_discard' || round.turnSeat !== HUMAN_SEAT) return;
     gameTab.selectedPosition = gameTab.selectedPosition === position ? null : position;
@@ -124,12 +209,31 @@
 
   function handleDiscardClick() {
     if (gameTab.selectedPosition === null) return;
+    if (isLocked()) return;
     const tiles = currentDisplayTiles();
-    const tile = tiles[gameTab.selectedPosition];
-    maybeSaveToReview(tiles, tile);
-    Round.discardTile(gameTab.match, tile, gameTab.riichiArmed);
-    gameTab.riichiArmed = false;
-    gameTab.selectedPosition = null;
+    performDiscard(tiles[gameTab.selectedPosition]);
+  }
+
+  /**
+   * 実際に牌を切る唯一の入口。
+   * 二重クリックで2回打牌されないよう busy でロックする。
+   * 学習パネルの「この牌を切る」もここを通る。
+   */
+  function performDiscard(tile) {
+    const round = gameTab.match.currentRound;
+    if (round.phase !== 'awaiting_discard' || round.turnSeat !== HUMAN_SEAT) return;
+    if (gameTab.busy) return;
+    gameTab.busy = true;
+    try {
+      const tiles = currentDisplayTiles();
+      maybeSaveToReview(tiles, tile);
+      if (live()) live().noteActualDiscard(tile);
+      Round.discardTile(gameTab.match, tile, gameTab.riichiArmed);
+      gameTab.riichiArmed = false;
+      gameTab.selectedPosition = null;
+    } finally {
+      gameTab.busy = false;
+    }
     advanceAndRender();
   }
 
@@ -182,28 +286,34 @@
   }
 
   function handleTsumoClick() {
+    if (isLocked()) return;
     const p = gameTab.match.players[HUMAN_SEAT];
     Round.endRoundWin(gameTab.match, [HUMAN_SEAT], HUMAN_SEAT, p.drawnTile, false);
     gameTab.kifuEventCursor = Kifu.appendEventsSince(gameTab.kifu, gameTab.match, gameTab.kifuEventCursor);
     renderGameTable();
+    if (live()) live().onRoundEnd(resultLabelOf(gameTab.match));
   }
 
   function handleRiichiToggle() {
+    if (isLocked()) return;
     gameTab.riichiArmed = !gameTab.riichiArmed;
     renderGameTable();
   }
 
   function handleAnkanClick(tile) {
+    if (isLocked()) return;
     Round.declareAnkan(gameTab.match, tile);
     advanceAndRender();
   }
 
   function handleKakanClick(tile) {
+    if (isLocked()) return;
     Round.declareKakan(gameTab.match, tile);
     advanceAndRender();
   }
 
   function handleCallDecision(decision) {
+    if (isLocked()) return;
     Round.resolveCallsWithHuman(gameTab.match, HUMAN_SEAT, decision);
     gameTab.selectedPosition = null;
     advanceAndRender();
@@ -348,10 +458,7 @@
       container.appendChild(discardBtn);
     } else {
       // リーチ後はツモ切り固定
-      const discardBtn = makeButton('ツモ切りする', () => {
-        Round.discardTile(match, p.drawnTile, false);
-        advanceAndRender();
-      }, true);
+      const discardBtn = makeButton('ツモ切りする', () => performDiscard(p.drawnTile), true);
       container.appendChild(discardBtn);
     }
   }
@@ -535,7 +642,8 @@
     body.appendChild(shantenLine);
 
     const riichiPlayers = riichiOpponentsOf(match);
-    const visibleCounts = CPU.buildVisibleCounts(match);
+    // V2.0: コーチ表示でも他家の手牌は使わない(公開情報だけで数える)
+    const visibleCounts = publicVisibleCounts();
 
     if (riichiPlayers.length > 0) {
       const safeTiles = [];
@@ -712,6 +820,14 @@
   // ==================================================
 
   function initGameTab() {
+    if (live()) {
+      live().setup({
+        humanSeat: HUMAN_SEAT,
+        getMatch: () => gameTab.match,
+        performDiscard,
+        rerender: () => renderGameTable(),
+      });
+    }
     document.getElementById('game-start-btn').addEventListener('click', handleStartGame);
     document.getElementById('game-next-round-btn').addEventListener('click', handleNextRound);
     document.getElementById('game-save-kifu-btn').addEventListener('click', handleSaveKifu);

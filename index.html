@@ -72,7 +72,27 @@
             <option value="full" selected>フルコーチ(おすすめ+理由まで)</option>
           </select>
         </label>
+        <label>プレイモード:
+          <select id="live-mode-select">
+            <option value="off">通常対局(学習問題なし)</option>
+            <option value="key" selected>重要局面コーチ(おすすめ)</option>
+            <option value="deep">じっくり学習</option>
+          </select>
+        </label>
+        <label>1局の最大出題数:
+          <select id="live-max-select">
+            <option value="1">1問</option>
+            <option value="2">2問</option>
+            <option value="3" selected>3問</option>
+            <option value="4">4問</option>
+            <option value="6">6問</option>
+            <option value="8">8問</option>
+          </select>
+        </label>
       </div>
+      <p class="hint-text" id="live-mode-description">
+        重要局面コーチ: 重要な場面だけ止まって考えます。1局あたり2〜4回が目安です。対局中いつでも変更・一時停止できます。
+      </p>
       <button id="game-start-btn" class="primary">対局を開始する</button>
     </div>
 
@@ -88,6 +108,18 @@
             <option value="full" selected>フルコーチ</option>
           </select>
         </label>
+        <label class="coach-inline">学習:
+          <select id="live-mode-inline">
+            <option value="off">OFF</option>
+            <option value="key">重要局面</option>
+            <option value="deep">じっくり</option>
+          </select>
+        </label>
+        <span id="live-count-badge" class="turn-info"></span>
+      </div>
+      <div class="controls live-controls">
+        <button id="live-coach-btn" type="button">今の局面を教えて</button>
+        <button id="live-skip-round-btn" type="button">この局はもう出題しない</button>
       </div>
 
       <div class="player-status-grid" id="player-status-grid"></div>
@@ -113,6 +145,11 @@
       <div id="game-coach-panel" class="explain-panel" hidden>
         <h3>コーチ</h3>
         <div id="game-coach-body"></div>
+      </div>
+
+      <div id="live-round-review" class="explain-panel" hidden>
+        <h3>この局の学び</h3>
+        <div id="live-round-review-body"></div>
       </div>
 
       <div id="game-result-panel" class="analysis-panel" hidden>
@@ -565,6 +602,10 @@
 <script src="js/quizdata.js"></script>
 <script src="js/quizsession.js"></script>
 <script src="js/quizstats.js"></script>
+<script src="js/livesnapshot.js"></script>
+<script src="js/livecoach.js"></script>
+<script src="js/livequiz.js"></script>
+<script src="js/livesession.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/app.js"></script>
 <script src="js/appgame.js"></script>
@@ -572,6 +613,19 @@
 <script src="js/appkifu.js"></script>
 <script src="js/applesson.js"></script>
 <script src="js/apptutorial.js"></script>
+<script src="js/applive.js"></script>
 <script src="js/appquiz.js"></script>
+<div id="live-backdrop" class="live-backdrop" hidden></div>
+<div id="live-panel" class="live-panel" hidden role="dialog" aria-modal="true" aria-labelledby="live-panel-title">
+  <div class="live-panel-inner">
+    <div class="live-panel-head">
+      <strong id="live-panel-title">学習問題</strong>
+      <button id="live-panel-close" type="button" class="live-panel-close" aria-label="閉じる">×</button>
+    </div>
+    <div id="live-panel-body" class="live-panel-body"></div>
+    <div id="live-panel-actions" class="live-panel-actions"></div>
+  </div>
+</div>
+
 </body>
 </html>
