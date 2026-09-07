@@ -646,9 +646,11 @@
         }))
       : [];
 
+    // 有効牌は「打牌を選べるとき」は最善手を切ったあとの受け入れ、
+    // 自分の手番でないとき(13枚)は今の手牌の受け入れを見せる。
     const effective = analysis
       ? (analysis.recommended.ukeireTiles || []).map((u) => ({ tile: u.tile, label: u.label, remaining: u.remaining }))
-      : [];
+      : (hand.ukeire.tiles || []).map((u) => ({ tile: u.tile, label: Tiles.shortLabel(u.tile), remaining: u.remaining }));
 
     const lines = [];
     lines.push(
@@ -664,6 +666,7 @@
       );
     }
     if (yakuList.length > 0) lines.push('狙えそうな役: ' + yakuList.map((y) => y.name).join('・') + '(まだ確定ではありません)');
+    if (!analysis) lines.push('今は自分の打牌を選ぶ場面ではないため、打牌候補は出していません。手牌と受け入れだけを確認できます。');
     lines.push('押し引き(オシヒキ)の目安: ' + pushfold.recommendationLabel + '。' + pushfold.description);
 
     return {
