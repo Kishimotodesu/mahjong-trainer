@@ -653,9 +653,57 @@
   }
 
   /**
+   * 問題の採点モード(V1.9.1)。データに書かれた値をそのまま使う。
+   * 書き忘れがあれば分かるように、未知の値は例外にする。
+   */
+  function scoringOf(question) {
+    const scoring = question.scoring;
+    if (!scoring) throw new Error('採点モード(scoring)が設定されていません: ' + question.id);
+    if (Reading.SCORING_KEYS.indexOf(scoring) === -1) throw new Error('未知の採点モード: ' + scoring + ' (' + question.id + ')');
+    return scoring;
+  }
+
+  /**
+   * 2人リーチなど、リーチ者が複数いる局面で「誰を読む問題なのか」をはっきりさせる。
+   * 表示用の文言をここで組み立て、画面とテストで同じものを使う。
+   */
+  function readingFocus(question) {
+    const board = normalizeBoard(question.board);
+    const riichiPlayers = board.players.filter((p) => p.riichi);
+    const target = board.players.find((p) => p.seat === board.targetSeat);
+    const targetLabel = target ? target.label : '相手';
+    const others = riichiPlayers.filter((p) => p.seat !== board.targetSeat).map((p) => p.label);
+    const scoring = scoringOf(question);
+    // 公開する手牌は、読む相手と違うことがある(相手の手牌を作っていない局面)
+    const hiddenSeat = question.hidden && question.hidden.seat !== undefined ? question.hidden.seat : board.targetSeat;
+    const hiddenOwner = board.players.find((p) => p.seat === hiddenSeat);
+    const hiddenLabel = hiddenOwner ? hiddenOwner.label : targetLabel;
+    const lines = [
+      '推理評価の対象: ' + targetLabel + 'に対する読みだけを採点します。',
+      '現物(ゲンブツ)・筋(スジ)の判定対象: ' + targetLabel + 'の河だけで判定します。',
+      '回答後に公開する手牌: ' + hiddenLabel + 'の手牌です。',
+      Reading.isWaitScored(scoring)
+        ? '待ち的中の判定対象: ' + targetLabel + 'の待ちだけです。'
+        : '待ち的中: この問題では採点しません(' + hiddenLabel + 'の実際の待ちは参考として表示します)。',
+    ];
+    if (others.length > 0) {
+      lines.push(others.join('・') + 'の手牌と待ちは、この問題では扱いません(2人全員の待ちを当てる問題ではありません)。');
+    }
+    return {
+      multiRiichi: riichiPlayers.length >= 2,
+      targetSeat: board.targetSeat,
+      targetLabel,
+      otherRiichiLabels: others,
+      headline: '今回読む相手: ' + targetLabel,
+      lines,
+    };
+  }
+
+  /**
    * 待ち読み問題の採点。推理評価と待ち的中を分けて返す。
    *  - 推理評価は公開情報だけ(reading.gradeReasoning)
    *  - 待ち的中だけが実際の待ち(question.hidden)を参照する
+   *  - 採点モードが reasoning-only の問題では、待ち的中を採点しない(hit は null)
    * クイズ全体の正誤(correct)は「推理として妥当だったか(◎か○)」で決める。
    * 待ちが外れても、公開情報の使い方が妥当なら不正解にはしない。
    */
@@ -667,9 +715,11 @@
     const candidates = (question.candidates || []).map((c) => (typeof c === 'number' ? c : c.tile));
     const count = question.selectCount || 3;
 
+    const scoring = scoringOf(question);
     const reasoning = Reading.gradeReasoning(board, candidates, selectedTiles, count);
+    // 実際の待ちは、採点しない問題でも「答え合わせの参考」として表示するため計算しておく
     const actualWaits = hiddenWaits(question.hidden);
-    const hit = Reading.matchWaits(selectedTiles, actualWaits);
+    const hit = Reading.gradeHit(scoring, selectedTiles, actualWaits);
 
     const correctIds = question.choices.filter((c) => reasoning.reasonableTiles.indexOf(c.value) !== -1).map((c) => c.id);
     return {
@@ -677,6 +727,9 @@
       correctIds,
       selectedIds: (selectedIds || []).slice(),
       resolved: reasoning.reasonableTiles,
+      scoring,
+      waitScored: Reading.isWaitScored(scoring),
+      scoringNote: Reading.scoringNote(scoring),
       reasoning,
       hit,
       actualWaits,
@@ -860,7 +913,16 @@
     const correctSorted = correctIds.slice().sort();
     const correct = selected.length === correctSorted.length && selected.every((id, i) => id === correctSorted[i]);
 
-    return { correct, correctIds, selectedIds: selected, resolved };
+    const graded = { correct, correctIds, selectedIds: selected, resolved };
+    if (question.course === 'reading') {
+      // 説明を選ぶ形式は常に reasoning-only(待ち的中は採点しない)
+      const scoring = scoringOf(question);
+      graded.scoring = scoring;
+      graded.waitScored = Reading.isWaitScored(scoring);
+      graded.scoringNote = Reading.scoringNote(scoring);
+      graded.hit = null;
+    }
+    return graded;
   }
 
   const QuizEngine = {
@@ -886,6 +948,8 @@
     defenseCandidates,
     publicBoard,
     readingClues,
+    scoringOf,
+    readingFocus,
     hiddenWaits,
     hiddenWaitDetails,
     gradeReadingQuestion,

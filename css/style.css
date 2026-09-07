@@ -2701,6 +2701,51 @@ body {
 .quiz-hit-badge.quiz-hit-hit { background: rgba(58, 166, 92, 0.3); }
 .quiz-hit-badge.quiz-hit-partial { background: rgba(224, 192, 96, 0.25); }
 .quiz-hit-badge.quiz-hit-miss { background: rgba(255, 255, 255, 0.08); }
+.quiz-hit-badge.quiz-hit-notscored { background: rgba(255, 255, 255, 0.06); color: var(--text-dim); }
+
+/* 採点方法の説明(V1.9.1)。何を採点するのかを問題ごとに明示する */
+.quiz-scoring-note {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+
+.quiz-hit-notscored {
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+}
+
+/* 「今回読む相手」。2人リーチのときは対象者を強調する */
+.quiz-focus {
+  background: var(--bg-panel);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  padding: 7px 10px;
+  margin-bottom: 8px;
+}
+
+.quiz-focus-strong {
+  border-left-color: var(--bad);
+}
+
+.quiz-focus-head {
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.quiz-focus-line {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+  margin-top: 3px;
+}
+
+.quiz-result-reading {
+  background: var(--bg-panel);
+  border-radius: 8px;
+  padding: 9px 11px;
+  margin-bottom: 10px;
+}
 
 .quiz-clue {
   display: flex;

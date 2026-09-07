@@ -15,6 +15,7 @@
   const QuizEngine = window.MJ.QuizEngine;
   const QuizSession = window.MJ.QuizSession;
   const QuizStats = window.MJ.QuizStats;
+  const Reading = window.MJ.Reading;
 
   const state = {
     view: 'list', // 'list' | 'question' | 'result'
@@ -247,6 +248,27 @@
       add('ドラ表示牌: ' + board.doraIndicators.map((t) => Tiles.shortLabel(t)).join('・'));
     }
     if (chips.childNodes.length > 0) parent.appendChild(chips);
+  }
+
+  /** 公開する手牌が誰のものか(2人リーチでは読む相手と違うことがある) */
+  function hiddenOwnerLabel(question, board) {
+    const seat = question.hidden && question.hidden.seat !== undefined ? question.hidden.seat : board.targetSeat;
+    const player = board.players.find((p) => p.seat === seat);
+    return player ? player.label : '相手';
+  }
+
+  /**
+   * 「今回読む相手」を明示する。2人リーチのように読む対象を取り違えやすい局面では、
+   * 推理評価・現物や筋の判定・公開する手牌・待ち的中が誰に対するものかを1つずつ書き出す。
+   */
+  function renderReadingFocus(parent, question) {
+    const focus = QuizEngine.readingFocus(question);
+    const box = el('div', 'quiz-focus' + (focus.multiRiichi ? ' quiz-focus-strong' : ''));
+    box.appendChild(el('div', 'quiz-focus-head', focus.headline));
+    if (focus.multiRiichi) {
+      focus.lines.forEach((line) => box.appendChild(el('div', 'quiz-focus-line', '・' + line)));
+    }
+    parent.appendChild(box);
   }
 
   /** 相手の手牌は回答前には伏せておく(裏向きの牌だけを見せる) */
@@ -710,7 +732,7 @@
     if (question.mode !== 'reading') {
       const waits = QuizEngine.hiddenWaits(question.hidden);
       const box = el('div', 'quiz-reading-section');
-      box.appendChild(el('div', 'quiz-board-label', '相手の手牌(ここで公開)'));
+      box.appendChild(el('div', 'quiz-board-label', hiddenOwnerLabel(question, board) + 'の手牌(答え合わせの参考)'));
       const reveal = el('div', 'quiz-reveal');
       const row = el('div', 'quiz-tile-row quiz-reading-tiles');
       question.hidden.hand
@@ -740,9 +762,10 @@
         b3.classList.add('quiz-static-tile', 'quiz-actual-wait');
         waitRow.appendChild(b3);
       });
-      box.appendChild(el('div', 'quiz-board-label', '実際の待ち牌'));
+      box.appendChild(el('div', 'quiz-board-label', '実際の待ち牌(答え合わせの参考)'));
       box.appendChild(waitRow);
       if (question.hidden.shape) box.appendChild(el('div', 'quiz-detail-sub', '待ちの形: ' + question.hidden.shape));
+      box.appendChild(el('div', 'quiz-scoring-note', Reading.scoringNote(question.scoring)));
       detail.appendChild(box);
       renderReadingClues(detail, board, waits);
       parent.appendChild(detail);
@@ -786,32 +809,59 @@
       });
       revealed.appendChild(meldRow);
     }
-    section('4. 相手の手牌(ここで公開)', revealed);
-    section('5. 実際の待ち牌', tileRow(graded.actualWaits, 'quiz-actual-wait'));
+    const ownerLabel = hiddenOwnerLabel(question, board);
+    const scored = !!hit;
+    section(scored ? '4. ' + ownerLabel + 'の手牌(ここで公開)' : '4. ' + ownerLabel + 'の手牌(答え合わせの参考)', revealed);
+    section(
+      scored ? '5. 実際の待ち牌' : '5. 実際の待ち牌(答え合わせの参考)',
+      tileRow(graded.actualWaits, 'quiz-actual-wait')
+    );
 
     const shapes = QuizEngine.hiddenWaitDetails(question.hidden);
     const shapeText =
       hiddenInfo.shape || [...new Set(shapes.reduce((a, x) => a.concat(x.waitLabels), []))].join(' / ') || '-';
     section('6. 待ちの形', el('div', 'quiz-detail-sub', shapeText));
 
-    const hitBox = section('7. 待ち的中(実際の待ちとの照合)', null, 'quiz-hit-' + hit.levelKey);
-    const hHead = el('div', 'quiz-reasoning-head');
-    hHead.appendChild(el('span', 'quiz-hit-mark', hit.mark));
-    hHead.appendChild(el('span', null, hit.level.label));
-    hitBox.appendChild(hHead);
-    if (hit.matched.length > 0) {
-      hitBox.appendChild(el('div', 'quiz-detail-sub', '含まれていた待ち: ' + hit.matched.map((t) => Tiles.shortLabel(t)).join('・')));
+    if (!scored) {
+      // 危険牌を選ぶ問題では、実際の待ち牌を自分が持っているとは限らない。
+      // 「不的中」と出すと推理が正しくても失敗に見えるため、待ちの的中は採点しない。
+      const noteBox = section('7. 待ちの的中について', null, 'quiz-hit-notscored');
+      noteBox.appendChild(el('div', 'quiz-reasoning-head', Reading.scoringNote(question.scoring)));
+      noteBox.appendChild(
+        el(
+          'div',
+          'quiz-detail-sub',
+          '上に出した' + ownerLabel + 'の手牌と待ちは、答え合わせの参考です。この問題の成績には、待ちの的中・不的中は入りません。'
+        )
+      );
+    } else {
+      const hitBox = section('7. 待ち的中(実際の待ちとの照合)', null, 'quiz-hit-' + hit.levelKey);
+      const hHead = el('div', 'quiz-reasoning-head');
+      hHead.appendChild(el('span', 'quiz-hit-mark', hit.mark));
+      hHead.appendChild(el('span', null, hit.level.label));
+      hitBox.appendChild(hHead);
+      hitBox.appendChild(el('div', 'quiz-detail-sub', Reading.scoringNote(question.scoring)));
+      if (hit.matched.length > 0) {
+        hitBox.appendChild(el('div', 'quiz-detail-sub', '含まれていた待ち: ' + hit.matched.map((t) => Tiles.shortLabel(t)).join('・')));
+      }
+      if (hit.missedWaits.length > 0) {
+        hitBox.appendChild(
+          el(
+            'div',
+            'quiz-detail-sub',
+            (question.scoring === 'hit-any' ? '選んでいなかった待ち(採点には影響しません): ' : '選べていなかった待ち: ') +
+              hit.missedWaits.map((t) => Tiles.shortLabel(t)).join('・')
+          )
+        );
+      }
+      hitBox.appendChild(
+        el(
+          'div',
+          'quiz-detail-sub',
+          '待ちが外れても、公開情報の使い方(推理評価)が妥当なら読みとしては正しい判断です。逆に、根拠が薄いまま偶然当たることもあります。'
+        )
+      );
     }
-    if (hit.missedWaits.length > 0) {
-      hitBox.appendChild(el('div', 'quiz-detail-sub', '選べていなかった待ち: ' + hit.missedWaits.map((t) => Tiles.shortLabel(t)).join('・')));
-    }
-    hitBox.appendChild(
-      el(
-        'div',
-        'quiz-detail-sub',
-        '待ちが外れても、公開情報の使い方(推理評価)が妥当なら読みとしては正しい判断です。逆に、根拠が薄いまま偶然当たることもあります。'
-      )
-    );
 
     renderReadingClues(detail, board, graded.actualWaits);
     parent.appendChild(detail);
@@ -864,7 +914,11 @@
       // 待ち読みは「唯一の正解」ではなく、推理評価を主役に表示する
       head.appendChild(el('span', 'quiz-feedback-mark', graded.reasoningDetail.mark));
       head.appendChild(el('strong', null, graded.reasoningDetail.grade.label));
-      head.appendChild(el('span', 'quiz-hit-badge quiz-hit-' + graded.hitDetail.levelKey, '待ち: ' + graded.hitDetail.mark));
+      if (graded.hitDetail) {
+        head.appendChild(el('span', 'quiz-hit-badge quiz-hit-' + graded.hitDetail.levelKey, '待ち: ' + graded.hitDetail.mark));
+      } else {
+        head.appendChild(el('span', 'quiz-hit-badge quiz-hit-notscored', '待ち: 採点なし'));
+      }
     } else {
       head.appendChild(el('span', 'quiz-feedback-mark', graded.correct ? '○' : '×'));
       head.appendChild(el('strong', null, graded.correct ? '正解' : '不正解'));
@@ -955,7 +1009,12 @@
     const promptBox = el('div', 'quiz-prompt');
     promptBox.appendChild(el('p', null, question.prompt));
     if (question.multi) promptBox.appendChild(el('p', 'quiz-prompt-note', '※当てはまるものをすべて選んでください(複数選択)'));
+    if (question.course === 'reading') {
+      // 何を採点するのかを、回答する前にはっきり伝える
+      promptBox.appendChild(el('p', 'quiz-scoring-note', Reading.scoringLabel(question.scoring)));
+    }
     root.appendChild(promptBox);
+    if (question.course === 'reading') renderReadingFocus(root, question);
 
     renderBoard(root, question, board, highlightSetFor(question, board));
     renderChoices(root, question);
@@ -988,6 +1047,46 @@
   // 結果画面
   // ==================================================
 
+  /**
+   * 待ち読みの結果内訳。
+   * 推理評価と待ち的中は別々に出し、待ち的中の分母には
+   * 「待ち予想を採点した問題」だけを数える(危険牌を選ぶ問題は入れない)。
+   */
+  function renderReadingSummary(parent, summary) {
+    const box = el('div', 'quiz-result-reading');
+    box.appendChild(el('div', 'quiz-board-label', '推理評価(公開情報の使い方)'));
+    const r = summary.reasoningCounts;
+    box.appendChild(
+      el('div', 'quiz-detail-sub', '◎ ' + r.excellent + '問 / ○ ' + r.good + '問 / △ ' + r.needsWork + '問')
+    );
+
+    box.appendChild(el('div', 'quiz-board-label', '待ち予想の的中(採点した問題のみ)'));
+    if (summary.hitAnswered === 0) {
+      box.appendChild(el('div', 'quiz-detail-sub', '今回は待ち予想を採点する問題がありませんでした。'));
+    } else {
+      const h = summary.hitCounts;
+      box.appendChild(
+        el(
+          'div',
+          'quiz-detail-sub',
+          '採点した問題: ' + summary.hitAnswered + '問 … 的中 ' + h.hit + '問 / 一部的中 ' + h.partial + '問 / 不的中 ' + h.miss + '問'
+        )
+      );
+    }
+    if (summary.reasoningOnlyAnswered > 0) {
+      box.appendChild(
+        el(
+          'div',
+          'quiz-scoring-note',
+          '危険牌を選ぶ問題など' +
+            summary.reasoningOnlyAnswered +
+            '問は、待ちの的中・不的中を採点していません(推理評価だけで採点しています)。'
+        )
+      );
+    }
+    parent.appendChild(box);
+  }
+
   function renderResult(root) {
     const summary = state.summary;
     const course = QuizData.getCourse(state.session.courseId);
@@ -1002,6 +1101,8 @@
     scoreBox.appendChild(el('div', 'quiz-result-main', summary.correct + ' / ' + summary.total + ' 問正解'));
     scoreBox.appendChild(el('div', 'quiz-result-rate', '正答率 ' + summary.rate + '%'));
     root.appendChild(scoreBox);
+
+    if (state.session.courseId === 'reading') renderReadingSummary(root, summary);
 
     if (summary.wrongTags.length > 0) {
       const tagBox = el('div', 'quiz-result-tags');
