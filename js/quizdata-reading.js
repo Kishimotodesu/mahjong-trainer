@@ -48,7 +48,7 @@
     description: '河や鳴きから危険な待ち候補を考え、回答後に相手の実際の手牌を確認します。',
     target: '河(カワ)と副露(フーロ)からの推理・染め手・多面待ち・「河だけでは断定できない」ことの理解',
     icon: '読',
-    note: '推理評価(公開情報の使い方)と待ち的中(実際の待ちと合っていたか)は別々に表示します。河だけで待ちを断定することはできません。',
+    note: '推理評価(公開情報の使い方)と待ち的中(実際の待ちと合っていたか)は別々に表示します。危険牌を選ぶ問題では、待ちの的中・不的中は採点しません。河だけで待ちを断定することはできません。',
     difficulties: [
       { id: 'beginner', name: '初級', recommended: true, description: '現物・筋・分かりやすい壁や染め手など、根拠が見つけやすい局面です。' },
       { id: 'intermediate', name: '中級', description: 'ワンチャンス・字牌待ち・ドラ周辺など、複数の可能性がある局面です。' },
@@ -99,9 +99,14 @@
     };
   }
 
-  /** 回答後にだけ公開する情報 */
+  /**
+   * 回答後にだけ公開する情報。
+   * seat は「この手牌が誰のものか」。2人リーチの局面で読む相手と一致しないことがあるため、
+   * 画面ではこの席の名前で公開する(誰の手牌かを取り違えないようにするため)。
+   */
   function hidden(spec) {
     return {
+      seat: spec.seat,
       hand: parse(spec.hand),
       melds: (spec.melds || []).map((m) => ({ type: m.type, tiles: parse(m.tiles) })),
       waits: parse(spec.waits),
@@ -214,7 +219,7 @@
     turn: 12,
     describe: '12巡目。下家(シモチャ)と対面(トイメン)の2人がリーチしています。まずは下家に対して考えます。',
   });
-  const HIDDEN_F = hidden({ hand: '456m789m234p67s99p', waits: '5s8s', shape: '両面待ち(リャンメンマチ)' });
+  const HIDDEN_F = hidden({ seat: 1, hand: '456m789m234p67s99p', waits: '5s8s', shape: '両面待ち(リャンメンマチ)' });
 
   // G: 多面待ち。
   const SCENE_G = scene({
@@ -292,8 +297,15 @@
     return Object.assign({ course: 'reading' }, spec);
   }
 
-  /** 危険候補・待ち予想(推理評価と待ち的中を分けて採点する形式) */
+  /**
+   * 危険候補・待ち予想(推理評価と待ち的中を分けて採点する形式)
+   * scoring は問題ごとに必ず明示する(既定値を置かない)。
+   *  reasoning-only … 自分の手牌から危険牌を選ぶ問題。待ちの的中は採点しない。
+   *  hit-any        … 待ちを1種類でも当てられれば的中。
+   *  hit-coverage   … 実際の待ちをすべて選べれば的中(選択肢と選択上限が条件を満たす問題だけ)。
+   */
   function readingQuestion(spec) {
+    if (!spec.scoring) throw new Error('scoring が未設定です: ' + spec.id);
     return q(
       Object.assign(
         {
@@ -307,15 +319,19 @@
     );
   }
 
-  /** 河・副露から読み取れる説明を選ぶ形式(通常の正誤判定) */
+  /**
+   * 河・副露から読み取れる説明を選ぶ形式(通常の正誤判定)。
+   * 待ち牌を選ぶ問題ではないので、採点は常に推理(説明の正誤)だけ。
+   */
   function statementQuestion(spec) {
-    return q(Object.assign({ multi: true, resolver: 'readingStatements' }, spec));
+    return q(Object.assign({ multi: true, resolver: 'readingStatements', scoring: 'reasoning-only' }, spec));
   }
 
   const READING_QUESTIONS = [
     // ---------------- 場面A ----------------
     readingQuestion({
       id: 'reading-01',
+      scoring: 'reasoning-only',
       difficulty: 'beginner',
       tags: ['reading-genbutsu', 'reading-suji', 'reading-dora'],
       selectCount: 2,
@@ -350,6 +366,7 @@
     }),
     readingQuestion({
       id: 'reading-03',
+      scoring: 'hit-any',
       difficulty: 'beginner',
       tags: ['reading-suji', 'reading-not-certain'],
       selectCount: 3,
@@ -360,7 +377,8 @@
       choices: tileChoices(['2s', '5m', '6p', '9s']),
       expected: ['c0', 'c1', 'c2'],
       explanation:
-        '実際の待ちは2索・5索でした。2索を選べていれば一部的中です。9索は6索の筋(スジ)なので、警戒の優先度は下がります。' +
+        '実際の待ちは2索・5索でした。5索は選択肢にありませんが、この問題は1種類でも当てられていれば的中なので、2索を選べていれば的中です。' +
+        '9索は6索の筋(スジ)なので、警戒の優先度は下がります。' +
         'ただし、この河から「2索・5索待ち」と当てることはできません。無筋を警戒するという読み自体が妥当かどうかが大事です。',
     }),
 
@@ -386,6 +404,7 @@
     }),
     readingQuestion({
       id: 'reading-05',
+      scoring: 'reasoning-only',
       difficulty: 'beginner',
       tags: ['reading-honitsu', 'reading-open-hand'],
       selectCount: 2,
@@ -401,6 +420,7 @@
     }),
     readingQuestion({
       id: 'reading-06',
+      scoring: 'hit-coverage',
       difficulty: 'intermediate',
       tags: ['reading-honitsu', 'reading-not-certain'],
       selectCount: 3,
@@ -437,6 +457,7 @@
     }),
     readingQuestion({
       id: 'reading-08',
+      scoring: 'reasoning-only',
       difficulty: 'intermediate',
       tags: ['reading-kabe', 'reading-suji'],
       selectCount: 2,
@@ -452,6 +473,7 @@
     }),
     readingQuestion({
       id: 'reading-09',
+      scoring: 'hit-coverage',
       difficulty: 'practical',
       tags: ['reading-kabe', 'reading-not-certain'],
       selectCount: 3,
@@ -489,6 +511,7 @@
     }),
     readingQuestion({
       id: 'reading-11',
+      scoring: 'reasoning-only',
       difficulty: 'intermediate',
       tags: ['reading-toitoi', 'reading-honor'],
       selectCount: 2,
@@ -504,6 +527,7 @@
     }),
     readingQuestion({
       id: 'reading-12',
+      scoring: 'hit-coverage',
       difficulty: 'practical',
       tags: ['reading-toitoi', 'reading-suji', 'reading-not-certain'],
       selectCount: 3,
@@ -514,7 +538,7 @@
       choices: tileChoices(['2m', '9s', '6p', '5z']),
       expected: ['c1', 'c3'],
       explanation:
-        '実際の待ちは2萬・9索の双碰(シャンポン)待ちでした。9索を選べていれば一部的中です。' +
+        '実際の待ちは2萬・9索の双碰(シャンポン)待ちでした。この問題は待ちをすべて選べれば的中で、9索だけなら一部的中です。' +
         '2萬は筋(スジ)ですが、双碰待ちには筋は関係ありません。「筋だから大丈夫」が通用しないのは、こういう手が相手のときです。',
     }),
 
@@ -540,6 +564,7 @@
     }),
     readingQuestion({
       id: 'reading-14',
+      scoring: 'reasoning-only',
       difficulty: 'intermediate',
       tags: ['reading-dora', 'reading-one-chance'],
       selectCount: 2,
@@ -555,6 +580,7 @@
     }),
     readingQuestion({
       id: 'reading-15',
+      scoring: 'hit-coverage',
       difficulty: 'intermediate',
       tags: ['reading-dora', 'reading-not-certain'],
       selectCount: 3,
@@ -565,13 +591,14 @@
       choices: tileChoices(['6p', '3p', '9s', '5z']),
       expected: ['c0', 'c1', 'c3'],
       explanation:
-        '実際の待ちは3筒・6筒でした。ドラの6筒と、その3つ違いの3筒を警戒できていれば的中です。' +
+        '実際の待ちは3筒・6筒でした。この問題は待ちをすべて選べれば的中なので、ドラの6筒と、その3つ違いの3筒を両方選べていれば的中です。' +
         'ドラ周辺は「残されやすい」ため待ちに絡みやすい、という読みが機能した例です。ただし毎回そうなるわけではありません。',
     }),
 
     // ---------------- 場面F ----------------
     readingQuestion({
       id: 'reading-16',
+      scoring: 'reasoning-only',
       difficulty: 'practical',
       tags: ['reading-two-riichi', 'reading-genbutsu'],
       selectCount: 2,
@@ -584,10 +611,15 @@
       explanation:
         '下家の河は2筒・6索・東・9萬。筋(スジ)は3つ違いの関係なので、6索から言えるのは3索と9索の筋であって、5索は筋ではありません。' +
         '2筒から言えるのは5筒の筋です。つまり5索・3筒・7筒はどれも無筋で、中でも中張牌の5索と3筒が警戒したい牌になります。' +
-        '2人リーチのときは、まず1人ずつ分けて考えるのが基本です。',
+        '2人リーチのときは、まず1人ずつ分けて考えるのが基本です。' +
+        'この問題で採点するのは下家(シモチャ)に対する推理だけで、対面(トイメン)の待ちは扱いません。',
     }),
     readingQuestion({
       id: 'reading-17',
+      scoring: 'reasoning-only',
+      // 公開できるのは下家(シモチャ)の手牌だけ。読む相手(対面)の手牌は作っていないため、
+      // 待ちの的中は採点せず、下家の手牌を「参考」として公開する。
+      hiddenSeat: 1,
       difficulty: 'practical',
       tags: ['reading-two-riichi'],
       selectCount: 2,
@@ -611,7 +643,8 @@
       explanation:
         '対面の河には2索と4筒があるので、対面に対しては5索と7筒が筋になります。逆に3筒と8索は無筋です。' +
         '同じ牌でも相手が変われば評価が変わります。片方に安全でも、もう片方には危険なことがよくあります。' +
-        '※この問題の「実際の待ち」は下家の手牌です。対面の手牌は伏せたままなので、待ち的中は参考として扱ってください。',
+        '※この問題で採点するのは、対面(トイメン)に対する推理だけです。待ちの的中は採点しません。' +
+        '回答後に公開するのは下家(シモチャ)の手牌で、対面の手牌はこの問題では作っていません。2人全員の待ちを当てる問題ではありません。',
     }),
     statementQuestion({
       id: 'reading-18',
@@ -636,6 +669,7 @@
     // ---------------- 場面G ----------------
     readingQuestion({
       id: 'reading-19',
+      scoring: 'hit-any',
       difficulty: 'practical',
       tags: ['reading-multi-wait', 'reading-not-certain'],
       selectCount: 3,
@@ -646,8 +680,8 @@
       choices: tileChoices(['1s', '4s', '7s', '5p']),
       expected: ['c1', 'c2', 'c3'],
       explanation:
-        '実際の待ちは1索・4索・7索の3面待ちでした。4索と7索を選べていれば一部的中です。' +
-        '多面待ちは候補が多いため、3種類選んでも全部は拾いきれません。「当てにいく」よりも、無筋を減らす考え方が大切です。',
+        '実際の待ちは1索・4索・7索の3面待ちでした。この問題は1種類でも当てられていれば的中なので、4索か7索を選べていれば的中です。' +
+        '多面待ちは候補が多く、全部を選び切ることを目標にすると読みとして無理が出ます。「当てにいく」よりも、無筋を減らす考え方が大切です。',
     }),
     statementQuestion({
       id: 'reading-20',
@@ -670,6 +704,7 @@
     }),
     readingQuestion({
       id: 'reading-21',
+      scoring: 'reasoning-only',
       difficulty: 'intermediate',
       tags: ['reading-multi-wait'],
       selectCount: 2,
@@ -707,6 +742,7 @@
     }),
     readingQuestion({
       id: 'reading-23',
+      scoring: 'reasoning-only',
       difficulty: 'practical',
       tags: ['reading-honitsu', 'reading-not-certain'],
       selectCount: 2,
@@ -721,6 +757,7 @@
     }),
     readingQuestion({
       id: 'reading-24',
+      scoring: 'hit-coverage',
       difficulty: 'practical',
       tags: ['reading-honitsu', 'reading-not-certain'],
       selectCount: 3,
@@ -739,6 +776,7 @@
     // ---------------- 場面I ----------------
     readingQuestion({
       id: 'reading-25',
+      scoring: 'reasoning-only',
       difficulty: 'intermediate',
       tags: ['reading-honor', 'reading-not-certain'],
       selectCount: 2,
@@ -754,6 +792,7 @@
     }),
     readingQuestion({
       id: 'reading-26',
+      scoring: 'hit-coverage',
       difficulty: 'intermediate',
       tags: ['reading-honor'],
       selectCount: 3,
@@ -791,6 +830,7 @@
     // ---------------- 場面J ----------------
     readingQuestion({
       id: 'reading-28',
+      scoring: 'reasoning-only',
       difficulty: 'practical',
       tags: ['reading-not-certain'],
       selectCount: 2,
@@ -826,6 +866,7 @@
     }),
     readingQuestion({
       id: 'reading-30',
+      scoring: 'hit-coverage',
       difficulty: 'practical',
       tags: ['reading-not-certain', 'reading-multi-wait'],
       selectCount: 3,
@@ -863,6 +904,7 @@
     }),
     readingQuestion({
       id: 'reading-32',
+      scoring: 'reasoning-only',
       difficulty: 'beginner',
       tags: ['reading-genbutsu', 'reading-open-hand'],
       selectCount: 2,
@@ -878,6 +920,7 @@
     }),
     readingQuestion({
       id: 'reading-33',
+      scoring: 'hit-coverage',
       difficulty: 'beginner',
       tags: ['reading-open-hand', 'reading-not-certain'],
       selectCount: 3,
@@ -912,6 +955,7 @@
     }),
     readingQuestion({
       id: 'reading-35',
+      scoring: 'hit-coverage',
       difficulty: 'beginner',
       tags: ['reading-genbutsu', 'reading-open-hand'],
       selectCount: 3,

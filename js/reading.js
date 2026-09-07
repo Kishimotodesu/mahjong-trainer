@@ -17,6 +17,11 @@
  *  待ち的中(matchWaits):     選んだ候補に実際の待ちが含まれていたか … 的中 / 一部的中 / 不的中
  *  推理が妥当でも待ちは外れることがあり、逆に根拠が弱くても偶然当たることがある。
  *  この2つは必ず別々に扱う。
+ *
+ * ■ 採点モード(V1.9.1)
+ *  問題ごとに reasoning-only / hit-any / hit-coverage のどれかを持つ。
+ *  「自分の手牌から危険牌を選ぶ」問題では、実際の待ち牌を自分が持っているとは限らないため、
+ *  待ちの的中・不的中は採点しない(reasoning-only)。詳しくは SCORING の定義を参照。
  */
 (function (root) {
   'use strict';
@@ -51,6 +56,58 @@
     partial: { key: 'partial', mark: '一部的中', label: '実際の待ちの一部を含んでいました' },
     miss: { key: 'miss', mark: '不的中', label: '実際の待ちは含まれていませんでした' },
   };
+
+  /**
+   * 採点モード(V1.9.1)。問題ごとに「何を採点するか」を決める。
+   *
+   *  reasoning-only … 推理評価だけを採点する。待ちの的中・不的中は表示も記録もしない。
+   *                   自分の手牌から危険牌を選ぶ問題では、実際の待ち牌を自分が持っているとは限らない。
+   *                   その状態で「不的中」と出すと、推理が正しくても失敗したように見えてしまうため。
+   *  hit-any        … 選んだ候補に実際の待ちが1種類でも含まれていれば的中。
+   *                   多面待ちで選択上限に収まらない場合でも「完全的中不可能」にならない。
+   *  hit-coverage   … 実際の待ちをすべて選べていれば的中、一部だけなら一部的中。
+   *                   選択肢に全待ちが含まれ、選択上限が待ちの種類数以上の問題にだけ使う。
+   */
+  const SCORING = {
+    reasoningOnly: 'reasoning-only',
+    hitAny: 'hit-any',
+    hitCoverage: 'hit-coverage',
+  };
+
+  const SCORING_KEYS = [SCORING.reasoningOnly, SCORING.hitAny, SCORING.hitCoverage];
+
+  /** 採点モードごとの説明。結果画面の文言はここを唯一の出典にする。 */
+  const SCORING_NOTES = {
+    'reasoning-only': '今回の問題は危険牌を選ぶ問題なので、待ちの的中・不的中は採点しません。',
+    'hit-any': '待ちを1種類でも当てられていれば的中です。多面待ちのすべてを選ぶ必要はありません。',
+    'hit-coverage': '実際の待ちをすべて選べていれば的中、一部だけなら一部的中です。',
+  };
+
+  /** 出題画面に出す短いラベル */
+  const SCORING_LABELS = {
+    'reasoning-only': '採点: 推理評価のみ(待ちの的中は採点しません)',
+    'hit-any': '採点: 推理評価＋待ち的中(1種類でも当たれば的中)',
+    'hit-coverage': '採点: 推理評価＋待ち的中(すべて選べれば的中)',
+  };
+
+  /** hit-any では「すべて」ではなく「1種類でも」が基準になるので、文言を変える */
+  const HIT_ANY_LABELS = {
+    hit: '実際の待ちを含んでいました',
+    miss: '実際の待ちは含まれていませんでした',
+  };
+
+  /** 待ち的中を採点するモードか */
+  function isWaitScored(scoring) {
+    return scoring === SCORING.hitAny || scoring === SCORING.hitCoverage;
+  }
+
+  function scoringNote(scoring) {
+    return SCORING_NOTES[scoring] || SCORING_NOTES[SCORING.reasoningOnly];
+  }
+
+  function scoringLabel(scoring) {
+    return SCORING_LABELS[scoring] || SCORING_LABELS[SCORING.reasoningOnly];
+  }
 
   /**
    * 読みによる危険度の補正値。defense.js のスコア(高いほど安全)に足し引きする。
@@ -507,26 +564,46 @@
   /**
    * 選んだ候補と、相手の実際の待ちを照合する。
    * この関数だけが「回答前には見えない情報」を使ってよい。
+   *
+   * 採点モードで基準が変わる。
+   *  hit-coverage(既定) … 全待ちを選べば的中 / 一部なら一部的中 / 0種類なら不的中
+   *  hit-any            … 1種類でも選べていれば的中 / 0種類なら不的中(一部的中は出さない)
+   * reasoning-only の問題ではそもそもこの関数を呼ばない(gradeHit を使う)。
+   *
    * @param {number[]} selected
    * @param {number[]} actualWaits
+   * @param {string} [scoring] 'hit-coverage' | 'hit-any'
    */
-  function matchWaits(selected, actualWaits) {
+  function matchWaits(selected, actualWaits, scoring) {
+    const mode = scoring === SCORING.hitAny ? SCORING.hitAny : SCORING.hitCoverage;
     const picked = new Set(selected || []);
     const waits = (actualWaits || []).slice().sort((a, b) => a - b);
     const matched = waits.filter((t) => picked.has(t));
     let level;
     if (waits.length === 0) level = HIT.miss;
-    else if (matched.length === waits.length) level = HIT.hit;
+    else if (mode === SCORING.hitAny) {
+      level = matched.length > 0 ? Object.assign({}, HIT.hit, { label: HIT_ANY_LABELS.hit }) : Object.assign({}, HIT.miss, { label: HIT_ANY_LABELS.miss });
+    } else if (matched.length === waits.length) level = HIT.hit;
     else if (matched.length > 0) level = HIT.partial;
     else level = HIT.miss;
     return {
       level,
       levelKey: level.key,
       mark: level.mark,
+      scoring: mode,
       matched,
       missedWaits: waits.filter((t) => !picked.has(t)),
       waits,
     };
+  }
+
+  /**
+   * 採点モードに従って待ち的中を求める。reasoning-only では null(採点しない)を返す。
+   * 「待ち成績の分母に入れるかどうか」も、この戻り値が null かどうかだけで決まる。
+   */
+  function gradeHit(scoring, selected, actualWaits) {
+    if (!isWaitScored(scoring)) return null;
+    return matchWaits(selected, actualWaits, scoring);
   }
 
   // ==================================================
@@ -593,6 +670,14 @@
   const Reading = {
     REASONING,
     HIT,
+    SCORING,
+    SCORING_KEYS,
+    SCORING_NOTES,
+    SCORING_LABELS,
+    isWaitScored,
+    scoringNote,
+    scoringLabel,
+    gradeHit,
     READING_WEIGHTS,
     targetOf,
     meldsOf,

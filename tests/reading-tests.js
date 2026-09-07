@@ -157,7 +157,7 @@ module.exports = function ({ test, assert, Tiles, Shanten, Reading, QuizData, Qu
   });
 
   test('待ち読み: 待ち的中の判定だけが実際の待ちを参照する', () => {
-    const q = questions.find((x) => x.mode === 'reading');
+    const q = questions.find((x) => x.mode === 'reading' && Reading.isWaitScored(x.scoring));
     const selected = q.expected.map((id) => q.choices.find((c) => c.id === id).value);
     const real = QuizEngine.gradeQuestion(q, q.expected);
 
@@ -185,7 +185,7 @@ module.exports = function ({ test, assert, Tiles, Shanten, Reading, QuizData, Qu
 
   test('待ち読み: 推理が妥当でも待ちが外れる問題と、その逆の問題が両方ある', () => {
     const summary = questions
-      .filter((q) => q.mode === 'reading')
+      .filter((q) => Reading.isWaitScored(q.scoring))
       .map((q) => QuizEngine.gradeQuestion(q, q.expected))
       .map((g) => g.reasoning.gradeKey + ':' + g.hit.levelKey);
     assert.ok(summary.some((s) => s === 'excellent:miss'), '「推理は妥当だが待ちは外れる」問題が無い');
@@ -259,7 +259,12 @@ module.exports = function ({ test, assert, Tiles, Shanten, Reading, QuizData, Qu
   test('待ち読み: 放銃率のようなパーセント表示を持たない', () => {
     const q = QuizData.getQuestion('reading-01');
     const graded = QuizEngine.gradeQuestion(q, q.expected);
-    const text = graded.reasoning.reasons.join(' ') + ' ' + graded.reasoning.grade.label + ' ' + graded.hit.level.label;
+    const text =
+      graded.reasoning.reasons.join(' ') +
+      ' ' +
+      graded.reasoning.grade.label +
+      ' ' +
+      (graded.hit ? graded.hit.level.label : graded.scoringNote);
     assert.ok(!/\d+\s*%/.test(text), '評価の文言にパーセントが含まれている: ' + text);
     questions.forEach((q2) => {
       assert.ok(!/\d+\s*%/.test(q2.explanation), `${q2.id}: 解説にパーセント表示がある`);
@@ -319,6 +324,7 @@ module.exports = function ({ test, assert, Tiles, Shanten, Reading, QuizData, Qu
         QuizStats.recordAttempt(courseId, [{ questionId: courseId + '-01', correct: true, tags: ['x'], difficulty: 'beginner' }]);
       });
 
+      // reading-01 は reasoning-only(待ち的中を採点しない)、reading-09 は hit-coverage
       const session = QuizSession.createSession('reading', { questionIds: ['reading-01', 'reading-09'] });
       while (!session.finished) {
         const q = QuizSession.currentQuestion(session);
@@ -342,10 +348,16 @@ module.exports = function ({ test, assert, Tiles, Shanten, Reading, QuizData, Qu
       assert.strictEqual(stats.attempts, 1);
       assert.strictEqual(stats.answered, 2);
       assert.strictEqual(stats.reasoning.excellent, 2, '推理評価が保存されていない');
-      assert.strictEqual(stats.hit.hit + stats.hit.partial + stats.hit.miss, 2, '待ち的中が保存されていない');
+      assert.strictEqual(
+        stats.hit.hit + stats.hit.partial + stats.hit.miss,
+        1,
+        '待ち的中の分母に、採点しない問題まで入っている'
+      );
 
       const reading = QuizStats.readingStats('reading');
       assert.strictEqual(reading.reasoningTotal, 2);
+      assert.strictEqual(reading.hitTotal, 1, '待ち予想を採点した問題数が合わない');
+      assert.strictEqual(reading.reasoningOnlyTotal, 1, '採点しなかった問題数が合わない');
       assert.strictEqual(reading.reasonableRate, 100);
       assert.ok(reading.hitRate !== null, '待ち的中率が出ていない');
 
@@ -376,7 +388,8 @@ module.exports = function ({ test, assert, Tiles, Shanten, Reading, QuizData, Qu
     const wrongChoice = q.choices.find((c) => q.expected.indexOf(c.id) === -1);
     const record = QuizSession.answerCurrent(session, [wrongChoice.id]);
     assert.ok(record.reasoning, '推理評価が記録されていない');
-    assert.ok(record.hit, '待ち的中が記録されていない');
+    assert.ok(record.hit, '待ち的中が記録されていない(reading-09 は待ちを採点する問題)');
+    assert.strictEqual(record.scoring, 'hit-coverage');
     QuizSession.goNext(session);
     const summary = QuizSession.summarize(session);
     assert.strictEqual(summary.readingAnswered, 1);

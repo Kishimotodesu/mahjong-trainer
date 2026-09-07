@@ -103,6 +103,9 @@
       tags: question.tags || [],
       difficulty: question.difficulty || null,
       // 待ち読み(V1.9): 集計用のキー(文字列)と、表示用の詳細を別々に持つ
+      // 待ち的中を採点しない問題(reasoning-only)では hit は null のままにする。
+      // この null が「待ち成績の分母に入れない」という意味になる。
+      scoring: graded.scoring || null,
       reasoning: graded.reasoning ? graded.reasoning.gradeKey : null,
       hit: graded.hit ? graded.hit.levelKey : null,
       reasoningDetail: graded.reasoning || null,
@@ -258,12 +261,20 @@
     const reasoningCounts = { excellent: 0, good: 0, needsWork: 0 };
     const hitCounts = { hit: 0, partial: 0, miss: 0 };
     let readingAnswered = 0;
+    // 待ち的中を採点した問題数。reasoning-only の問題はここに数えない(分母に入れない)。
+    let hitAnswered = 0;
+    let reasoningOnlyAnswered = 0;
     results.forEach((r) => {
       if (r.reasoning) {
         reasoningCounts[r.reasoning] = (reasoningCounts[r.reasoning] || 0) + 1;
         readingAnswered++;
       }
-      if (r.hit) hitCounts[r.hit] = (hitCounts[r.hit] || 0) + 1;
+      if (r.hit) {
+        hitCounts[r.hit] = (hitCounts[r.hit] || 0) + 1;
+        hitAnswered++;
+      } else if (r.scoring === 'reasoning-only') {
+        reasoningOnlyAnswered++;
+      }
     });
 
     return {
@@ -271,6 +282,8 @@
       correct,
       rate,
       readingAnswered,
+      hitAnswered,
+      reasoningOnlyAnswered,
       reasoningCounts,
       hitCounts,
       wrongQuestionIds: wrong.map((r) => r.questionId),

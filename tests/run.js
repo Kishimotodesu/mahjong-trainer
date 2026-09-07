@@ -1917,5 +1917,17 @@ require(path.join(__dirname, 'reading-tests.js'))({
   QuizStats,
 });
 
+console.log('== 待ち読みの採点モード(V1.9.1) ==');
+require(path.join(__dirname, 'reading-scoring-tests.js'))({
+  test,
+  assert,
+  Tiles,
+  Reading,
+  QuizData,
+  QuizEngine,
+  QuizSession,
+  QuizStats,
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
