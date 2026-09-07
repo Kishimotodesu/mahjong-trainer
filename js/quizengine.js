@@ -686,9 +686,17 @@
         ? '待ち的中の判定対象: ' + targetLabel + 'の待ちだけです。'
         : '待ち的中: この問題では採点しません(' + hiddenLabel + 'の実際の待ちは参考として表示します)。',
     ];
-    if (others.length > 0) {
-      lines.push(others.join('・') + 'の手牌と待ちは、この問題では扱いません(2人全員の待ちを当てる問題ではありません)。');
-    }
+    others.forEach((label) => {
+      // 公開する手牌の持ち主が「読まない側」のことがある(読む相手の手牌を作っていない局面)。
+      // そのときに「扱いません」と書くと画面の表示と食い違うため、文言を分ける。
+      if (label === hiddenLabel) {
+        lines.push(
+          label + 'の手牌は参考として公開しますが、' + label + 'に対する読みはこの問題では採点しません(2人全員の待ちを当てる問題ではありません)。'
+        );
+      } else {
+        lines.push(label + 'の手牌と待ちは、この問題では扱いません(2人全員の待ちを当てる問題ではありません)。');
+      }
+    });
     return {
       multiRiichi: riichiPlayers.length >= 2,
       targetSeat: board.targetSeat,
