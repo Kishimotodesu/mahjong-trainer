@@ -16,6 +16,7 @@
   const QuizSession = window.MJ.QuizSession;
   const QuizStats = window.MJ.QuizStats;
   const Reading = window.MJ.Reading;
+  const TsuzukiLink = window.MJ.TsuzukiLink;
 
   const state = {
     view: 'list', // 'list' | 'question' | 'result'
@@ -911,6 +912,21 @@
     parent.appendChild(box2);
   }
 
+  /** いま間違えた1問を、URLでつづきノートへ送る。クイズ履歴は変更しない。 */
+  function sendQuestionToTsuzuki(question, graded) {
+    const course = QuizData.getCourse(question.course);
+    const item = TsuzukiLink.itemFromQuizAnswer(question, graded, {
+      courseName: course ? course.name : question.course,
+    });
+    const result = TsuzukiLink.buildSingleUrl(item);
+    if (!result.ok) {
+      window.alert(result.reason);
+      return;
+    }
+    TsuzukiLink.markExported([item.externalId]);
+    window.open(result.url, '_blank', 'noopener');
+  }
+
   function renderFeedback(parent, question, board) {
     const graded = state.graded;
     const box = el('div', 'quiz-feedback ' + (graded.correct ? 'quiz-feedback-correct' : 'quiz-feedback-wrong'));
@@ -958,6 +974,14 @@
     else if (question.course === 'genbutsu') renderGenbutsuDetail(box, question, board);
     else if (question.course === 'defense') renderDefenseDetail(box, question, board);
     else if (question.course === 'reading') renderReadingDetail(box, question, board);
+
+    // 間違えた問題は、学習ノートアプリ「つづきノート」へ送って後日復習できる
+    if (!graded.correct && TsuzukiLink) {
+      const sendBtn = el('button', 'quiz-tsuzuki-btn', 'つづきノートで復習');
+      sendBtn.type = 'button';
+      sendBtn.addEventListener('click', () => sendQuestionToTsuzuki(question, graded));
+      box.appendChild(sendBtn);
+    }
 
     parent.appendChild(box);
   }

@@ -207,6 +207,19 @@
 
       <div id="review-list-body"></div>
 
+      <details class="review-io" id="tsuzuki-export-panel">
+        <summary>つづきノートへ送る</summary>
+        <p class="muted">
+          間違えた問題を、学習ノートアプリ「つづきノート」へ送って復習カードにできます。
+          送っても、この復習帳のデータは消えません。
+        </p>
+        <div class="controls">
+          <button id="tsuzuki-export-pending-btn" class="primary">未連携の問題を書き出す</button>
+          <button id="tsuzuki-export-all-btn">すべて書き出す</button>
+        </div>
+        <div id="tsuzuki-export-message" class="muted"></div>
+      </details>
+
       <details class="review-io">
         <summary>復習データの保存・移行(JSON)</summary>
         <p class="muted">
@@ -606,6 +619,7 @@
 <script src="js/livecoach.js"></script>
 <script src="js/livequiz.js"></script>
 <script src="js/livesession.js"></script>
+<script src="js/tsuzukilink.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/app.js"></script>
 <script src="js/appgame.js"></script>

@@ -15,6 +15,7 @@
   const Review = window.MJ.Review;
   const Problems = window.MJ.Problems;
   const Evaluator = window.MJ.Evaluator;
+  const TsuzukiLink = window.MJ.TsuzukiLink;
 
   const GRADE_MARK = { excellent: '◎', good: '○', fair: '△', bad: '×' };
 
@@ -135,6 +136,9 @@
         const detail = box.querySelector('.review-history');
         if (detail) detail.hidden = !detail.hidden;
       }, false)
+    );
+    controls.appendChild(
+      makeButton('つづきノートで復習', () => sendToTsuzuki(row.entry), false)
     );
     controls.appendChild(
       makeButton('削除', () => {
@@ -473,6 +477,51 @@
     }
   }
 
+  // ==================================================
+  // つづきノート連携
+  // ==================================================
+
+  /** 1件だけ、URLでつづきノートへ送る。元データは変更しない。 */
+  function sendToTsuzuki(entry) {
+    const item = TsuzukiLink.itemFromReviewEntry(entry);
+    const result = TsuzukiLink.buildSingleUrl(item);
+    if (!result.ok) {
+      window.alert(result.reason);
+      return;
+    }
+    TsuzukiLink.markExported([item.externalId]);
+    window.open(result.url, '_blank', 'noopener');
+  }
+
+  /** 複数件をJSONファイルとして書き出す。書き出しても復習帳からは消えない。 */
+  function exportToFile(items, label) {
+    const msg = document.getElementById('tsuzuki-export-message');
+    if (!items || items.length === 0) {
+      if (msg) msg.textContent = label + 'に該当する問題はありません。';
+      return;
+    }
+    const text = TsuzukiLink.buildFileText(items);
+    const blob = new Blob([text], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = TsuzukiLink.fileName();
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    // すぐ解放するとダウンロードが途中で打ち切られる環境があるため、少し待ってから解放する
+    setTimeout(() => {
+      a.remove();
+      URL.revokeObjectURL(url);
+    }, 3000);
+    TsuzukiLink.markExported(items.map((i) => i.externalId));
+    if (msg) {
+      msg.textContent =
+        items.length + '問を書き出しました。つづきノートの「記録 → 外部から取り込む」で読み込んでください。復習帳のデータはそのまま残っています。';
+    }
+    render();
+  }
+
   function init() {
     document.getElementById('review-today-btn').addEventListener('click', startTodayReview);
     document.getElementById('review-hide-answers').addEventListener('change', (e) => {
@@ -488,6 +537,12 @@
     document.getElementById('review-back-btn').addEventListener('click', backToList);
     document.getElementById('review-export-btn').addEventListener('click', handleExport);
     document.getElementById('review-import-btn').addEventListener('click', handleImport);
+    document
+      .getElementById('tsuzuki-export-pending-btn')
+      .addEventListener('click', () => exportToFile(TsuzukiLink.pendingReviewItems(), '未連携'));
+    document
+      .getElementById('tsuzuki-export-all-btn')
+      .addEventListener('click', () => exportToFile(TsuzukiLink.allReviewItems(), 'すべて'));
     render();
   }
 

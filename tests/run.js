@@ -42,6 +42,7 @@ const LiveSnapshot = require(path.join(__dirname, '..', 'js', 'livesnapshot.js')
 const LiveCoach = require(path.join(__dirname, '..', 'js', 'livecoach.js'));
 const LiveQuiz = require(path.join(__dirname, '..', 'js', 'livequiz.js'));
 const LiveSession = require(path.join(__dirname, '..', 'js', 'livesession.js'));
+const TsuzukiLink = require(path.join(__dirname, '..', 'js', 'tsuzukilink.js'));
 
 function mulberry32(seed) {
   return function () {
@@ -1948,6 +1949,17 @@ require(path.join(__dirname, 'live-tests.js'))({
   LiveSession,
   QuizData,
   QuizEngine,
+  QuizSession,
+});
+
+console.log('== つづきノート連携(V2.1) ==');
+require(path.join(__dirname, 'tsuzuki-tests.js'))({
+  test,
+  assert,
+  Tiles,
+  Review,
+  TsuzukiLink,
+  QuizData,
   QuizSession,
 });
 

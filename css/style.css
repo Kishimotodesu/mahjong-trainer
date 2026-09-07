@@ -3232,3 +3232,21 @@ body.live-panel-open {
     min-width: 100%;
   }
 }
+
+
+/* つづきノート連携ボタン */
+.quiz-tsuzuki-btn {
+  margin-top: 10px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #1f6f6b;
+  background: #ffffff;
+  color: #17544f;
+  font: inherit;
+  cursor: pointer;
+}
+
+.quiz-tsuzuki-btn:hover {
+  background: #e4f0ee;
+}
