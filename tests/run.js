@@ -38,6 +38,10 @@ const QuizSession = require(path.join(__dirname, '..', 'js', 'quizsession.js'));
 const QuizStats = require(path.join(__dirname, '..', 'js', 'quizstats.js'));
 const Defense = require(path.join(__dirname, '..', 'js', 'defense.js'));
 const Reading = require(path.join(__dirname, '..', 'js', 'reading.js'));
+const LiveSnapshot = require(path.join(__dirname, '..', 'js', 'livesnapshot.js'));
+const LiveCoach = require(path.join(__dirname, '..', 'js', 'livecoach.js'));
+const LiveQuiz = require(path.join(__dirname, '..', 'js', 'livequiz.js'));
+const LiveSession = require(path.join(__dirname, '..', 'js', 'livesession.js'));
 
 function mulberry32(seed) {
   return function () {
@@ -1927,6 +1931,24 @@ require(path.join(__dirname, 'reading-scoring-tests.js'))({
   QuizEngine,
   QuizSession,
   QuizStats,
+});
+
+console.log('== 実戦学習モード(V2.0) ==');
+require(path.join(__dirname, 'live-tests.js'))({
+  test,
+  assert,
+  Tiles,
+  GameState,
+  Round: RoundEngine,
+  Kifu,
+  Review,
+  LiveSnapshot,
+  LiveCoach,
+  LiveQuiz,
+  LiveSession,
+  QuizData,
+  QuizEngine,
+  QuizSession,
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

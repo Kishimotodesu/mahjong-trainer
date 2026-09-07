@@ -294,7 +294,7 @@
       negativeFactors.push({ key: 'riichi', text: riichiPlayers[0].labelWithReading + 'からリーチが入っています。' });
     } else if (riichiCount >= 2) {
       // 2人リーチは1人リーチより必ず守備寄りになるようにする
-      score -= 1.5 - 2 * (riichiCount - 1);
+      score -= 1.5 + 2 * (riichiCount - 1);
       negativeFactors.push({
         key: 'multi-riichi',
         text: riichiCount + '人からリーチが入っています。1人のときより放銃(ホウジュウ)の危険が高くなります。',
@@ -658,6 +658,7 @@
       );
     }
     if (yakuList.length > 0) lines.push('狙えそうな役: ' + yakuList.map((y) => y.name).join('・') + '(まだ確定ではありません)');
+    lines.push('押し引き(オシヒキ)の目安: ' + pushfold.recommendationLabel + '。' + pushfold.description);
 
     return {
       shanten: hand.shanten,

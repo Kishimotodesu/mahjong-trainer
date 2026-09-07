@@ -692,7 +692,10 @@
           ? '鳴いても' + yakuCheck.reason + 'ので、アガリにつながります。'
           : '鳴くと門前(メンゼン)でなくなり、リーチ・平和(ピンフ)・門前清自摸和が使えません。今のところ代わりの役も見えていません。'
       ),
-      axisEntry('defense', '鳴くと手牌が減るため、あとで守りに使える牌も減ります。安全牌を持ちにくくなる点も考えます。'),
+      axisEntry(
+        'defense',
+        '鳴くと門前(メンゼン)でなくなり、手牌も減ります。あとで守りに使える牌が減るため、安全牌を持ちにくくなる点も考えます。'
+      ),
     ];
 
     return { grade, correctIds, detail: { advice, shantenBefore, shantenAfter, yakuCheck }, axes: commonAxes(snapshot, axes) };
