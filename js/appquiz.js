@@ -45,6 +45,12 @@
 
   function renderList(root) {
     const store = QuizStats.load();
+
+    // 実戦学習(対局中の学習)の成績。弱点から既存コースへ移動できるようにする。
+    if (window.MJ.AppLive && window.MJ.AppLive.renderDashboard) {
+      window.MJ.AppLive.renderDashboard(root, (courseId) => startSession(courseId));
+    }
+
     const list = el('div', 'quiz-course-list');
 
     QuizData.COURSES.forEach((course) => {

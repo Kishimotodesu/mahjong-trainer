@@ -2795,3 +2795,440 @@ body {
     margin-left: 0;
   }
 }
+
+/* ==================================================
+   実戦学習モード(V2.0)
+   スマホでは下から開くシート、PCでは画面下に固定されるパネルとして出す。
+   盤面は常に上に見えたままにする。
+   ================================================== */
+
+.live-controls {
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.live-controls button {
+  font-size: 0.82rem;
+  padding: 6px 10px;
+}
+
+.live-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 40;
+}
+
+.live-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 41;
+  background: var(--bg-panel);
+  border-top: 2px solid var(--accent);
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.45);
+  max-height: 78vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.live-panel-inner {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 78vh;
+}
+
+.live-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.live-panel-head strong {
+  font-size: 0.98rem;
+}
+
+.live-panel-close {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.live-panel-body {
+  padding: 10px 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.live-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--bg-panel);
+}
+
+.live-panel-actions button {
+  flex: 1 1 auto;
+  min-width: 120px;
+}
+
+body.live-panel-open {
+  overflow: hidden;
+}
+
+.live-prompt {
+  font-size: 0.98rem;
+  font-weight: bold;
+  margin: 0 0 6px;
+  line-height: 1.6;
+}
+
+.live-note {
+  font-size: 0.83rem;
+  line-height: 1.7;
+  color: var(--text-dim);
+  margin: 3px 0;
+}
+
+.live-label {
+  font-size: 0.78rem;
+  font-weight: bold;
+  color: var(--accent-strong);
+  margin-top: 8px;
+  margin-bottom: 3px;
+}
+
+.live-disclaimer {
+  font-size: 0.76rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+  border-left: 3px solid var(--accent);
+  padding-left: 8px;
+  margin-top: 8px;
+}
+
+.live-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0;
+}
+
+.live-chip {
+  font-size: 0.74rem;
+  background: var(--bg-panel-light);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.live-chip-warn {
+  background: rgba(209, 73, 91, 0.28);
+}
+
+.live-hand-box {
+  margin: 6px 0;
+}
+
+.live-hand-row {
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.live-hand-row .tile,
+.live-choices-tiles .tile {
+  width: 34px;
+  min-width: 34px;
+}
+
+.live-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.live-choice {
+  flex: 1 1 auto;
+  min-width: 130px;
+  text-align: left;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--bg-panel-light);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.live-choice-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent) inset;
+}
+
+.live-choice-correct {
+  border-color: var(--good);
+  background: rgba(58, 166, 92, 0.22);
+}
+
+.live-choice-picked {
+  outline: 2px solid var(--accent);
+}
+
+.live-choice-tile.live-choice-correct {
+  box-shadow: 0 0 0 3px var(--good);
+}
+
+.live-choice-tile.live-choice-picked {
+  outline: 3px solid var(--accent);
+}
+
+.live-grade,
+.live-coach-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg-panel-light);
+  margin-bottom: 8px;
+}
+
+.live-grade-mark {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.live-grade-label {
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.live-grade-excellent .live-grade-mark { color: #8fe3aa; }
+.live-grade-good .live-grade-mark { color: var(--accent-strong); }
+.live-grade-fair .live-grade-mark { color: #ffd08a; }
+.live-grade-bad .live-grade-mark { color: #ffa8b4; }
+
+.live-details {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 6px 9px;
+  margin: 8px 0;
+}
+
+.live-details > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.live-axis {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.live-axis:last-child {
+  border-bottom: none;
+}
+
+.live-axis-label {
+  font-size: 0.75rem;
+  color: var(--accent-strong);
+  font-weight: bold;
+}
+
+.live-axis-text {
+  font-size: 0.83rem;
+  line-height: 1.7;
+}
+
+.live-table-wrap {
+  overflow-x: auto;
+  margin: 6px 0;
+}
+
+.live-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.8rem;
+}
+
+.live-table th,
+.live-table td {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 4px 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.live-table .live-row-top {
+  background: rgba(58, 166, 92, 0.18);
+}
+
+.live-pushfold {
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 8px 0;
+  background: var(--bg-panel-light);
+  border-left: 4px solid var(--accent);
+}
+
+.live-pushfold-push { border-left-color: var(--good); }
+.live-pushfold-cautious { border-left-color: var(--fair); }
+.live-pushfold-fold { border-left-color: var(--bad); }
+
+.live-pushfold-head {
+  font-weight: bold;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+
+.live-clue {
+  display: flex;
+  gap: 6px;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  padding: 3px 0;
+}
+
+.live-clue-limit {
+  color: var(--accent-strong);
+}
+
+.live-oneliner {
+  font-size: 0.88rem;
+  line-height: 1.7;
+  background: rgba(224, 192, 96, 0.12);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 10px;
+}
+
+.live-review-item {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-left-width: 4px;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 8px 0;
+}
+
+.live-review-item.live-grade-excellent { border-left-color: #8fe3aa; }
+.live-review-item.live-grade-good { border-left-color: var(--accent-strong); }
+.live-review-item.live-grade-fair { border-left-color: #ffd08a; }
+.live-review-item.live-grade-bad { border-left-color: #ffa8b4; }
+
+.live-review-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.live-review-turn {
+  font-size: 0.74rem;
+  background: var(--bg-panel-light);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.live-review-title {
+  font-weight: bold;
+  font-size: 0.88rem;
+}
+
+.live-review-flag {
+  font-size: 0.76rem;
+  color: var(--accent-strong);
+  margin: 4px 0;
+}
+
+.live-tags {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  margin: 4px 0;
+}
+
+.live-dashboard {
+  background: var(--bg-panel);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.live-dashboard-title {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.live-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.live-suggestion button {
+  font-size: 0.78rem;
+  padding: 4px 10px;
+}
+
+/* PCでは画面下に固定しつつ、幅を抑えて盤面を隠しすぎないようにする */
+@media (min-width: 900px) {
+  .live-panel {
+    left: auto;
+    right: 16px;
+    bottom: 16px;
+    width: 460px;
+    border-radius: 14px;
+    border: 2px solid var(--accent);
+    max-height: 82vh;
+  }
+
+  .live-panel-inner {
+    max-height: 82vh;
+  }
+
+  .live-backdrop {
+    background: rgba(0, 0, 0, 0.25);
+  }
+}
+
+/* 320pxでも牌が押せるようにする */
+@media (max-width: 360px) {
+  .live-hand-row .tile,
+  .live-choices-tiles .tile {
+    width: 30px;
+    min-width: 30px;
+  }
+
+  .live-panel-actions button {
+    min-width: 100px;
+    font-size: 0.8rem;
+  }
+
+  .live-choice {
+    min-width: 100%;
+  }
+}
