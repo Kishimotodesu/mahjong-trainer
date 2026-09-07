@@ -550,7 +550,13 @@
       discardPriority = Math.max(discardPriority, 76);
       discardReasons.push('役や打点を考えると、牌効率だけでは決められません。');
     }
-    if (discardPriority > 0) {
+    // 候補が横並びすぎる局面(配牌直後など)は、問題にしても学びが薄いので出さない
+    const topTieCount = discards.filter(
+      (d) => d.resultShanten === best.resultShanten && d.ukeireTotal === best.ukeireTotal
+    ).length;
+    const tooFlat = topTieCount > 5 && !valueConflict;
+
+    if (discardPriority > 0 && !tooFlat) {
       const minor = discardPriority < 66;
       if (deep || !minor) {
         found.push(

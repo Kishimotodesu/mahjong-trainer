@@ -283,13 +283,16 @@
     };
   }
 
+  /** 選択肢IDを表示用のラベルに変換する。多すぎると読みにくいので最大6個までにする。 */
   function labelsOf(question, ids) {
-    return (ids || [])
+    const labels = (ids || [])
       .map((id) => {
         const c = question.choices.find((x) => x.id === id);
         return c ? c.label : null;
       })
       .filter(Boolean);
+    if (labels.length <= 6) return labels;
+    return labels.slice(0, 6).concat(['ほか' + (labels.length - 6) + '個']);
   }
 
   /**
