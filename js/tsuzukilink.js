@@ -11,13 +11,17 @@
 (function (root) {
   'use strict';
 
-  let Tiles, Review;
+  let Tiles, Review, QuizData, QuizStats;
   if (typeof module !== 'undefined' && module.exports) {
     Tiles = require('./tiles.js');
     Review = require('./review.js');
+    QuizData = require('./quizdata.js');
+    QuizStats = require('./quizstats.js');
   } else {
     Tiles = root.MJ.Tiles;
     Review = root.MJ.Review;
+    QuizData = root.MJ.QuizData;
+    QuizStats = root.MJ.QuizStats;
   }
 
   /** 書き出し済みフラグだけを持つ専用キー(既存データには触れない)。 */
@@ -29,7 +33,7 @@
   /** つづきノート側で既定にしているテーマ名。 */
   const TOPIC_NAME = '麻雀';
   const SOURCE_APP = 'mahjong-trainer';
-  const APP_VERSION = 'v2.1.0';
+  const APP_VERSION = 'v2.2.0';
   /** URL1件送信の上限(つづきノート側の MAX_FRAGMENT_CHARS と揃える)。 */
   const MAX_FRAGMENT_CHARS = 8 * 1024;
 
@@ -179,6 +183,14 @@
   // 変換: クイズの誤答
   // ==================================================
 
+  /** 「過去の回答内容は保存されていない」ことを示す固定文言。推測で埋めないための印。 */
+  const NO_ANSWER_RECORD = '（過去の回答内容は保存されていません）';
+
+  function correctIdsOf(question, record) {
+    if (record && Array.isArray(record.correctIds)) return record.correctIds;
+    return Array.isArray(question.expected) ? question.expected : [];
+  }
+
   function labelsOf(question, ids) {
     if (!question || !Array.isArray(question.choices) || !Array.isArray(ids)) return '';
     return question.choices
@@ -203,6 +215,8 @@
     const details = {};
 
     if (meta.courseName) details['コース'] = meta.courseName;
+    details['コースID'] = question.course || '';
+    details['問題種別'] = question.mode || question.course || '';
     if (question.difficulty) details['難易度'] = question.difficulty;
     const hand = tilesToText(board.hand);
     if (hand) details['手牌'] = hand;
@@ -232,15 +246,22 @@
       if (Array.isArray(record.actualWaits) && record.actualWaits.length > 0) {
         details['実際の待ち'] = tilesToText(record.actualWaits);
       }
+    } else {
+      // 一括書き出しでは「どの選択肢を選んだか」までは保存されていない。
+      // 推測して埋めると事実と違う記録が残るため、分からないことをそのまま書く。
+      details['自分の回答'] = NO_ANSWER_RECORD;
     }
     if (Array.isArray(question.tags) && question.tags.length > 0) {
-      details['タグ'] = question.tags.join('・');
+      details['学習タグ'] = question.tags.join('・');
+    }
+    if (question.course === 'wait' || question.mode === 'reading') {
+      const waits = labelsOf(question, correctIdsOf(question, record));
+      if (waits) details['待ち'] = waits;
     }
     details['元の問題ID'] = question.id;
     details['アプリ'] = '麻雀学習アプリ ' + APP_VERSION;
 
-    const correctIds = record && Array.isArray(record.correctIds) ? record.correctIds : question.expected;
-    const correctLabels = labelsOf(question, correctIds);
+    const correctLabels = labelsOf(question, correctIdsOf(question, record));
 
     return {
       externalId: 'quiz-wrong:' + (question.course || 'quiz') + ':' + question.id,
@@ -303,12 +324,12 @@
     return JSON.stringify(buildPayload(items), null, 2);
   }
 
-  function fileName() {
+  /** アプリ名・種類・日付が分かるファイル名。 */
+  function fileName(kind) {
     const d = new Date();
     const pad = (n) => String(n).padStart(2, '0');
-    return (
-      'mahjong-trainer-tsuzuki-' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '.json'
-    );
+    const date = '' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
+    return 'mahjong-trainer-tsuzuki-' + (kind ? kind + '-' : '') + date + '.json';
   }
 
   // ==================================================
@@ -368,6 +389,65 @@
     return (s.entries || []).map(itemFromReviewEntry).filter(Boolean);
   }
 
+  // ==================================================
+  // クイズ誤答の一括書き出し
+  // ==================================================
+
+  /**
+   * クイズ履歴に残っている誤答(wrongQuestionIds)を、問題データと突き合わせて変換する。
+   *
+   * 履歴には「どの選択肢を選んだか」は保存されていないため、自分の回答は補わず
+   * 「保存されていない」と明記する(推測して書かない)。
+   * 問題データから消えたIDはエラーにせず読み飛ばす。
+   * @param {object} [quizStore] 省略時は localStorage から読み込む
+   */
+  function allQuizWrongItems(quizStore) {
+    if (!QuizData || !QuizStats) return [];
+    const store = quizStore || QuizStats.load();
+    const items = [];
+    (QuizData.COURSES || []).forEach((course) => {
+      const questions = QuizData.questionsForCourse(course.id) || [];
+      const existingIds = questions.map((q) => q.id);
+      const wrongIds = QuizStats.wrongQuestionIds(course.id, existingIds, store);
+      const stats = QuizStats.courseStats(course.id, store);
+      wrongIds.forEach((id) => {
+        const question = QuizData.getQuestion(id);
+        if (!question) return;
+        const item = itemFromQuizAnswer(question, null, {
+          courseName: course.name,
+          // 「いつ間違えたか」は問題ごとには残っていないため、そのコースの最終挑戦日時を使う
+          at: stats.lastAt || undefined,
+        });
+        if (item) items.push(item);
+      });
+    });
+    return items;
+  }
+
+  /** まだ書き出していないクイズ誤答だけ。 */
+  function pendingQuizWrongItems(quizStore, exportedStore) {
+    const ex = exportedStore || loadExported();
+    return allQuizWrongItems(quizStore).filter((item) => !isExported(item.externalId, ex));
+  }
+
+  /** 指定した externalId のクイズ誤答だけ。 */
+  function quizWrongItemsByIds(externalIds, quizStore) {
+    const want = new Set(externalIds || []);
+    return allQuizWrongItems(quizStore).filter((item) => want.has(item.externalId));
+  }
+
+  /** 画面表示用の一覧(チェックボックスつきで選ばせるため)。 */
+  function listQuizWrongForDisplay(quizStore, exportedStore) {
+    const ex = exportedStore || loadExported();
+    return allQuizWrongItems(quizStore).map((item) => ({
+      externalId: item.externalId,
+      courseName: item.details['コース'] || '',
+      questionId: item.details['元の問題ID'] || '',
+      prompt: item.question,
+      exported: isExported(item.externalId, ex),
+    }));
+  }
+
   const TsuzukiLink = {
     STORAGE_KEY,
     DEFAULT_BASE_URL,
@@ -393,6 +473,11 @@
     markExported,
     pendingReviewItems,
     allReviewItems,
+    allQuizWrongItems,
+    pendingQuizWrongItems,
+    quizWrongItemsByIds,
+    listQuizWrongForDisplay,
+    NO_ANSWER_RECORD,
   };
 
   if (typeof module !== 'undefined' && module.exports) {

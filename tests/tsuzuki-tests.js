@@ -3,7 +3,7 @@
  * つづきノート連携(js/tsuzukilink.js)のテスト。
  * 既存の復習帳・クイズ履歴を壊さないこと、externalId が安定することを重点的に確認する。
  */
-module.exports = function ({ test, assert, Tiles, Review, TsuzukiLink, QuizData, QuizSession }) {
+module.exports = function ({ test, assert, Tiles, Review, TsuzukiLink, QuizData, QuizSession, QuizStats }) {
   // ---- テスト用の復習帳エントリーを作る ----
   function makeReviewEntry() {
     const store = Review.createStore();
@@ -163,6 +163,138 @@ module.exports = function ({ test, assert, Tiles, Review, TsuzukiLink, QuizData,
     const pending = TsuzukiLink.pendingReviewItems(store, exported);
     assert.strictEqual(pending.length, 1, '未連携は1件だけ');
     assert.strictEqual(pending[0].externalId, all[1].externalId);
+  });
+
+
+  // ==================================================
+  // V2.2: クイズ誤答の一括書き出し
+  // ==================================================
+
+  /** クイズ履歴のダミー(localStorage を使わず、そのまま渡せる形) */
+  function quizStoreWith(courseId, wrongIds) {
+    return {
+      version: 2,
+      courses: {
+        [courseId]: {
+          attempts: 1,
+          correct: 0,
+          answered: wrongIds.length,
+          lastAt: '2026-09-10T01:00:00.000Z',
+          wrongQuestionIds: wrongIds.slice(),
+          byDifficulty: {},
+          reasoning: { excellent: 0, good: 0, needsWork: 0 },
+          hit: { hit: 0, partial: 0, miss: 0 },
+          hitLegacy: null,
+        },
+      },
+      tags: {},
+    };
+  }
+
+  function firstWrongIds(n) {
+    return QuizData.questionsForCourse('yaku').slice(0, n).map((q) => q.id);
+  }
+
+  // 1. 未連携クイズ誤答だけを書き出せる
+  test('未連携のクイズ誤答だけを書き出せる', () => {
+    const ids = firstWrongIds(3);
+    const store = quizStoreWith('yaku', ids);
+    const all = TsuzukiLink.allQuizWrongItems(store);
+    assert.strictEqual(all.length, 3, '誤答3問が変換される');
+
+    const exported = TsuzukiLink.markExported([all[0].externalId], { version: 1, exportedIds: [] });
+    const pending = TsuzukiLink.pendingQuizWrongItems(store, exported);
+    assert.strictEqual(pending.length, 2, '未連携は2問');
+    assert.ok(
+      pending.every((p) => p.externalId !== all[0].externalId),
+      '連携済みは含まれない'
+    );
+  });
+
+  // 2. 選択した誤答だけを書き出せる
+  test('選択した誤答だけを書き出せる', () => {
+    const store = quizStoreWith('yaku', firstWrongIds(3));
+    const all = TsuzukiLink.allQuizWrongItems(store);
+    const picked = TsuzukiLink.quizWrongItemsByIds([all[0].externalId, all[2].externalId], store);
+    assert.strictEqual(picked.length, 2);
+    assert.strictEqual(picked[0].externalId, all[0].externalId);
+    assert.strictEqual(picked[1].externalId, all[2].externalId);
+    assert.strictEqual(TsuzukiLink.quizWrongItemsByIds([], store).length, 0, '未選択なら0件');
+  });
+
+  // 3. 連携済みを含めてすべて書き出せる
+  test('連携済みを含めてすべて書き出せる', () => {
+    const store = quizStoreWith('yaku', firstWrongIds(3));
+    const all = TsuzukiLink.allQuizWrongItems(store);
+    TsuzukiLink.markExported(all.map((i) => i.externalId), { version: 1, exportedIds: [] });
+    assert.strictEqual(TsuzukiLink.allQuizWrongItems(store).length, 3, '連携済みでも全件返る');
+  });
+
+  test('問題データから消えたIDはエラーにせず読み飛ばす', () => {
+    const store = quizStoreWith('yaku', firstWrongIds(1).concat(['deleted-question-id']));
+    const all = TsuzukiLink.allQuizWrongItems(store);
+    assert.strictEqual(all.length, 1, '存在する1問だけ');
+  });
+
+  // 4. 1件送信と一括書き出しで externalId が一致する
+  test('1件送信と一括書き出しで externalId が一致する', () => {
+    const question = QuizData.questionsForCourse('yaku')[0];
+    const single = TsuzukiLink.itemFromQuizAnswer(question, null, { courseName: '役当てクイズ' });
+    const bulk = TsuzukiLink.allQuizWrongItems(quizStoreWith('yaku', [question.id]))[0];
+    assert.strictEqual(single.externalId, bulk.externalId, '同じIDになる（重複登録されない）');
+    assert.strictEqual(bulk.externalId, 'quiz-wrong:yaku:' + question.id);
+  });
+
+  // 5. 過去に保存されていない回答を捏造しない
+  test('保存されていない回答を推測で埋めない', () => {
+    const question = QuizData.questionsForCourse('yaku')[0];
+    const bulk = TsuzukiLink.allQuizWrongItems(quizStoreWith('yaku', [question.id]))[0];
+    assert.strictEqual(
+      bulk.details['自分の回答'],
+      TsuzukiLink.NO_ANSWER_RECORD,
+      '「保存されていません」と明記する'
+    );
+    // 正解・問題文・局面は問題データから取れるので入る
+    assert.ok(bulk.answer.length > 0, '正解は入る');
+    assert.ok(bulk.details['手牌'], '手牌は入る');
+    assert.ok(bulk.details['選択肢'], '選択肢は入る');
+    assert.strictEqual(bulk.details['コースID'], 'yaku');
+    assert.ok(bulk.details['問題種別'], '問題種別が入る');
+  });
+
+  // 6. 書き出しても元の誤答履歴が残る
+  test('書き出しても元のクイズ誤答履歴は消えない', () => {
+    const ids = firstWrongIds(2);
+    const store = quizStoreWith('yaku', ids);
+    const all = TsuzukiLink.allQuizWrongItems(store);
+    TsuzukiLink.markExported(all.map((i) => i.externalId), { version: 1, exportedIds: [] });
+    assert.deepStrictEqual(store.courses.yaku.wrongQuestionIds, ids, '誤答IDはそのまま');
+    assert.strictEqual(store.courses.yaku.answered, ids.length, '集計も変わらない');
+    assert.notStrictEqual(TsuzukiLink.STORAGE_KEY, QuizStats.STORAGE_KEY, '保存キーが別');
+  });
+
+  // 7. 日本語を含むJSONが壊れない
+  test('日本語を含むクイズ誤答JSONが壊れない', () => {
+    const store = quizStoreWith('yaku', firstWrongIds(2));
+    const text = TsuzukiLink.buildFileText(TsuzukiLink.allQuizWrongItems(store));
+    const parsed = JSON.parse(text);
+    assert.strictEqual(parsed.items.length, 2);
+    assert.strictEqual(parsed.items[0].topicName, '麻雀');
+    assert.ok(parsed.items[0].question.length > 0);
+    // 往復しても文字が変わらない
+    assert.strictEqual(JSON.parse(JSON.stringify(parsed)).items[0].question, parsed.items[0].question);
+    assert.ok(TsuzukiLink.fileName('quiz').indexOf('mahjong-trainer-tsuzuki-quiz-') === 0, '種類と日付が入る');
+  });
+
+  test('表示用の一覧に連携済みかどうかが出る', () => {
+    const store = quizStoreWith('yaku', firstWrongIds(2));
+    const all = TsuzukiLink.allQuizWrongItems(store);
+    const exported = TsuzukiLink.markExported([all[0].externalId], { version: 1, exportedIds: [] });
+    const rows = TsuzukiLink.listQuizWrongForDisplay(store, exported);
+    assert.strictEqual(rows.length, 2);
+    assert.strictEqual(rows[0].exported, true);
+    assert.strictEqual(rows[1].exported, false);
+    assert.ok(rows[0].courseName.length > 0, 'コース名が入る');
   });
 
   // 8. 既存機能が壊れていない（保存キー・APIの互換）

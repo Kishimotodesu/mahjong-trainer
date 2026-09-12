@@ -1961,6 +1961,7 @@ require(path.join(__dirname, 'tsuzuki-tests.js'))({
   TsuzukiLink,
   QuizData,
   QuizSession,
+  QuizStats,
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

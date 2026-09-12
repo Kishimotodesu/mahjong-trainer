@@ -115,6 +115,8 @@
 
     root.appendChild(list);
 
+    renderTsuzukiExport(root, store);
+
     const footer = el('div', 'quiz-list-footer');
     const resetBtn = el('button', null, 'クイズの成績だけリセット');
     resetBtn.addEventListener('click', () => {
@@ -125,6 +127,138 @@
     });
     footer.appendChild(resetBtn);
     root.appendChild(footer);
+  }
+
+  // ==================================================
+  // つづきノートへの一括連携
+  // ==================================================
+
+  /** チェックされた誤答の externalId。開いている間だけ保持する。 */
+  const tsuzukiSelection = new Set();
+
+  /**
+   * 「クイズの誤答をつづきノートへ」パネル。
+   * 主導線は「未連携の誤答を書き出す」。選択・全件は補助として並べる。
+   */
+  function renderTsuzukiExport(root, store) {
+    if (!TsuzukiLink) return;
+    const rows = TsuzukiLink.listQuizWrongForDisplay(store);
+    const box = el('details', 'quiz-tsuzuki-panel');
+    box.id = 'quiz-tsuzuki-panel';
+
+    const summary = document.createElement('summary');
+    summary.textContent = 'クイズの誤答をつづきノートへ';
+    box.appendChild(summary);
+
+    if (rows.length === 0) {
+      box.appendChild(
+        el('p', 'muted', 'まだ間違えた問題がありません。クイズに挑戦すると、ここに誤答が貯まります。')
+      );
+      root.appendChild(box);
+      return;
+    }
+
+    const pending = rows.filter((r) => !r.exported);
+    box.appendChild(
+      el(
+        'p',
+        'muted',
+        '間違えた問題を、学習ノートアプリ「つづきノート」へ送って復習カードにできます。' +
+          '送っても、この誤答履歴は消えません。'
+      )
+    );
+    box.appendChild(
+      el('p', 'quiz-tsuzuki-count', '誤答 ' + rows.length + '問（未連携 ' + pending.length + '問）')
+    );
+
+    const message = el('div', 'muted');
+    message.id = 'quiz-tsuzuki-message';
+
+    const actions = el('div', 'quiz-tsuzuki-actions');
+    const pendingBtn = el('button', 'primary', '未連携の誤答を書き出す(' + pending.length + '問)');
+    pendingBtn.type = 'button';
+    pendingBtn.disabled = pending.length === 0;
+    pendingBtn.addEventListener('click', () =>
+      exportQuizItems(TsuzukiLink.pendingQuizWrongItems(store), '未連携の誤答', message)
+    );
+    actions.appendChild(pendingBtn);
+
+    const selectedBtn = el('button', null, '選択した誤答を書き出す');
+    selectedBtn.type = 'button';
+    selectedBtn.addEventListener('click', () =>
+      exportQuizItems(
+        TsuzukiLink.quizWrongItemsByIds([...tsuzukiSelection], store),
+        '選択した誤答',
+        message
+      )
+    );
+    actions.appendChild(selectedBtn);
+
+    const allBtn = el('button', null, '連携済みを含めてすべて書き出す(' + rows.length + '問)');
+    allBtn.type = 'button';
+    allBtn.addEventListener('click', () =>
+      exportQuizItems(TsuzukiLink.allQuizWrongItems(store), 'すべての誤答', message)
+    );
+    actions.appendChild(allBtn);
+    box.appendChild(actions);
+
+    const list = el('div', 'quiz-tsuzuki-list');
+    rows.forEach((row) => {
+      const label = document.createElement('label');
+      label.className = 'quiz-tsuzuki-row';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = tsuzukiSelection.has(row.externalId);
+      cb.addEventListener('change', () => {
+        if (cb.checked) tsuzukiSelection.add(row.externalId);
+        else tsuzukiSelection.delete(row.externalId);
+      });
+      label.appendChild(cb);
+      const text = el('span', 'quiz-tsuzuki-row-text');
+      text.appendChild(el('span', 'quiz-tsuzuki-course', row.courseName));
+      text.appendChild(el('span', null, row.prompt.slice(0, 60)));
+      if (row.exported) text.appendChild(el('span', 'quiz-tsuzuki-done', '連携済み'));
+      label.appendChild(text);
+      list.appendChild(label);
+    });
+    box.appendChild(list);
+
+    box.appendChild(
+      el(
+        'p',
+        'muted',
+        'ファイルが保存されない場合：iPhoneのSafariでは「ダウンロード」フォルダに入ります。' +
+          '保存できないときは、1問ずつ「つづきノートで復習」を使うとファイル無しで送れます。'
+      )
+    );
+    box.appendChild(message);
+    root.appendChild(box);
+  }
+
+  /** 選ばれた誤答をJSONファイルとして書き出す。誤答履歴そのものは変更しない。 */
+  function exportQuizItems(items, label, message) {
+    if (!items || items.length === 0) {
+      message.textContent = label + 'に該当する問題はありません。';
+      return;
+    }
+    const blob = new Blob([TsuzukiLink.buildFileText(items)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = TsuzukiLink.fileName('quiz');
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    // すぐ解放するとダウンロードが途中で打ち切られる環境があるため、少し待ってから解放する
+    setTimeout(() => {
+      a.remove();
+      URL.revokeObjectURL(url);
+    }, 3000);
+    TsuzukiLink.markExported(items.map((i) => i.externalId));
+    message.textContent =
+      items.length +
+      '問を書き出しました。つづきノートの「記録 → 外部から取り込む」で読み込んでください。' +
+      'クイズの誤答履歴はそのまま残っています。';
   }
 
   /**
